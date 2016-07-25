@@ -1,10 +1,12 @@
 # DescriptioODn : Deal with teamcity issue
 # @author     : t-jiyunz@microsoft.com
 
-parseString = require 'xml2js'
 CronJob = require('cron').CronJob
 request = require 'sync-request'
-bobbin = require 'bobbin'
+
+token = process.env.HUBOT_SLACK_TOKEN || ''
+SlackClient = require 'slack-api-client'
+slack = new SlackClient(token)
 
 module.exports = (robot) ->
 
@@ -260,10 +262,7 @@ module.exports = (robot) ->
 
 # Build / Deploy a project
 
-#channel = 'general'
   robot.respond /(build|deploy)\s(.*)$/, (res) ->
-    channel = res.message.user.name
-    console.log channel
     if refreshflag is false
       refreshList()
     op = res.match[0].split(" ")[1]
@@ -294,7 +293,7 @@ module.exports = (robot) ->
         domain = BuildInfo[proj][pos][domain_field]
         refreshURL()
         
-        do_build_and_check(robot,channel,id)
+        do_build_and_check(res,id)
         res.send op + "ing..."
         return
       else if slices.length is 2
@@ -310,7 +309,7 @@ module.exports = (robot) ->
           if row[1] is branchname and row[op_field] is op
             domain = row[domain_field]
             refreshURL()
-            do_build_and_check(robot,channel,row[0])
+            do_build_and_check(res,row[0])
             res.send op + "ing..."
             return
 
@@ -332,7 +331,7 @@ module.exports = (robot) ->
         if row[1] is branchname and row[op_field] is op
           domain = row[domain_field]
           refreshURL()
-          do_build_and_check(robot,channel,row[0])
+          do_build_and_check(res,row[0])
           res.send op + "ing..."
           return
 
@@ -353,7 +352,7 @@ module.exports = (robot) ->
         if row[1] is branchname and row[op_field] is op
           domain = row[domain_field]
           refreshURL()
-          do_build_and_check(robot,channel,row[0])
+          do_build_and_check(res,row[0])
           res.send op + "ing..."
           return
 
@@ -363,7 +362,7 @@ module.exports = (robot) ->
     else
       res.send "Incorrect command."
 
-  do_build_and_check = (robot, channel, id) ->
+  do_build_and_check = (res, id) ->
     data = general_build_xml(id)
     info = request('POST', BuildQueue, {
       'headers': {'Content-type':'application/xml'}
@@ -371,23 +370,33 @@ module.exports = (robot) ->
     }).getBody('utf8')
 
     href = get_build_href(info)
-    new CronJob('* */1 * * * *', check_href_method(robot,channel,href), null,true)
+    new CronJob('* */1 * * * *', check_href_method(res,href), null,true)
     return
 
-  check_href_method = (robot, channel, href) ->
+  check_href_method = (res, href) ->
+    channel = get_username(res)
     href = ServerURL + href
-    -> if check_href(robot, channel, href) is true
+    -> if check_href(channel, href) is true
       this.stop()
       
-  check_href = (robot, channel, href) ->
+  check_href = (channel, href) ->
+    console.log channel
     console.log href
     info = request('GET',href).getBody('utf8')
     status = info.match(/state="[^"]+"/)[0].split("\"")[1]
-    console.log status
     if status is "finished"
-      robot.messageRoom "t-jiyunz", "Your build has finished."
+      slack.api.chat.postMessage ({
+        channel:channel,
+        text:"Your build has finished.",
+        as_user:true
+      }), (err,ret) ->
+        throw err if err
+        console.log ret
       return true
-    return false
+		statURL = info.match(/statistics\x20href="[^"]+"/)[0].split("\"")[1]
+		stat = request('GET',statURL).getBody('utf8')
+		console.log stat
+		return false
 
   get_build_href = (data) ->
     data.match(/href="[^"]+"/)[0].split("\"")[1]
