@@ -1,4 +1,4 @@
-# DescriptioODn : Deal with teamcity issue
+# Description : Deal with teamcity issue
 # @author     : t-jiyunz@microsoft.com
 
 CronJob = require('cron').CronJob
