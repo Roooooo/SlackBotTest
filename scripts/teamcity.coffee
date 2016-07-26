@@ -370,7 +370,7 @@ module.exports = (robot) ->
     }).getBody('utf8')
 
     href = get_build_href(info)
-    new CronJob('* */1 * * * *', check_href_method(res,href), null,true)
+    new CronJob('0 */1 * * * *', check_href_method(res,href), null,true)
     return
 
   check_href_method = (res, href) ->
@@ -384,6 +384,22 @@ module.exports = (robot) ->
     console.log href
     info = request('GET',href).getBody('utf8')
     status = info.match(/state="[^"]+"/)[0].split("\"")[1]
+
+    statURL = ServerURL + info.match(/statistics\x20href="[^"]+"/)
+    if statURL isnt null
+      statURL = statURL[0].split("\"")[1]
+      stat = request('GET',statURL).getBody('utf8')
+      buildTime = stat.match(/BuildDuration" value="[^"]+"/)
+      if buildTime is null
+        console.log "Not found build time."
+      else
+        buildTime = parseInt(buildTime[0].split("\"")[2])/1000
+        slack.api.chat.postMessage ({
+          channel:channel,
+          text:"Have used #{buildTime}s on building.",
+          as_user:true
+        }), (err, ret) ->
+          throw err if err
     if status is "finished"
       slack.api.chat.postMessage ({
         channel:channel,
@@ -393,10 +409,7 @@ module.exports = (robot) ->
         throw err if err
         console.log ret
       return true
-		statURL = info.match(/statistics\x20href="[^"]+"/)[0].split("\"")[1]
-		stat = request('GET',statURL).getBody('utf8')
-		console.log stat
-		return false
+    return false
 
   get_build_href = (data) ->
     data.match(/href="[^"]+"/)[0].split("\"")[1]
