@@ -3,6 +3,9 @@
 
 CronJob = require('cron').CronJob
 request = require 'sync-request'
+fs = require 'fs'
+
+AuthInfo = "user.txt"
 
 token = process.env.HUBOT_SLACK_TOKEN || ''
 SlackClient = require 'slack-api-client'
@@ -27,8 +30,11 @@ module.exports = (robot) ->
     if rcode isnt null
       res.send "Error status code : #{rcode.statuscode}"
 
-  username = "redmond.corp.microsoft.com%5Cvscsats"
-  password = "China2016%40VisualStudio"
+  authInfo = ->
+    fs.readFileSync AuthInfo, 'utf8'
+  username = authInfo().match(/username="(.*)"/)[1]
+  password = authInfo().match(/password="(.*)"/)[1]
+
   DomainList = [
     "epxprofilebuild"
     "msdnbuild"
@@ -385,9 +391,9 @@ module.exports = (robot) ->
     info = request('GET',href).getBody('utf8')
     status = info.match(/state="[^"]+"/)[0].split("\"")[1]
 
-    statURL = ServerURL + info.match(/statistics\x20href="[^"]+"/)
+    statURL = info.match(/statistics\x20href="[^"]+"/)
     if statURL isnt null
-      statURL = statURL[0].split("\"")[1]
+      statURL = ServerURL + statURL[0].split("\"")[1]
       stat = request('GET',statURL).getBody('utf8')
       buildTime = stat.match(/BuildDuration" value="[^"]+"/)
       if buildTime is null
