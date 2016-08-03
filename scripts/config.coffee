@@ -10,7 +10,16 @@ slack = new SlackClient(token)
 
 module.exports = (robot) ->
 
+  get_userid = (res) ->
+    return res.message.user.id
+
+  get_username = (res) ->
+    return res.message.user.name
+
   configdir = "/home/t-jiyunz/teambot/Slack_TeamBot/config"
+
+  get_config_file = (userid) ->
+    return configdir + "/config_" + userid + ".json"
 
   slack.api.users.list ({
     presence:1
@@ -18,43 +27,46 @@ module.exports = (robot) ->
     throw err if err
     for item in ret['members']
       if item['is_bot'] is false
-        file = configdir + "/config_" + item['id'] + ".json"
+        file = get_config_file item['id']
         console.log item['id']
         console.log item['name']
         console.log file
-        #exist = fs.existsSync file
-        #if exist is false
-        user_data = {
-          name:item['name']
-          token:null
-        }
+        exist = fs.existsSync file
+        if exist is false
+          user_data = {
+            id:item['id']
+            name:item['name']
+            token:null
+            mapping:{}
+          }
         
-        console.log user_data
-        fs.writeFileSync file, JSON.stringify(user_data)
+          console.log user_data
+          fs.writeFileSync file, JSON.stringify(user_data)
 
-        #fs.existsSync file, (exist) ->
-        #  console.log exist
-        #  if exist is false
-        #    console.log file
-        #    fs.writeFileSync file, null
-  
-  update_user_info = ->
+  robot.respond /vso config init$/i, (res) ->
+    file = get_config_file get_userid res
+    console.log fs.readFileSync file,'utf8'
+    user_data = {
+      id:get_userid res
+      name:get_username res
+      token:null
+      mapping:[]
+    }
+    fs.writeFileSync file,JSON.stringify user_data
 
+  robot.respond /vso config set token/i, (res) ->
+    res.send "Please contact bot admin!"
 
-  init_vso_config = (userID) ->
-    vsoconfigdir = "/home/t-jiyunz/teambot/Slack_Teambot/config/vso"
-    
-    file = vsoconfigdir + "/" + userID + ".json"
-    slack.api.user.info ({
-      user:userID
-    }), (err, ret) ->
-      throw err if err
-      user_data = {
-        id:userID
-        name:ret['user']['name']
-        vsotoken:null
-      }
-      fs.writeFileSync file JSON.stringify(user_data)
+  robot.respond /config set map [^\s\x20\t]+ (.*)$/, (res) ->
+    file = get_config_file get_userid res
+    config = JSON.parse fs.readFileSync file, 'utf8'
 
-  robot.respond /vso set config init$/i, (res) ->
-    
+    from = res.match[0].split('map ')[1].split(' ')[0]
+    to = res.match[1]
+
+    config['mapping'].push {
+      from:from
+      to:to
+    }
+
+    fs.writeFileSync file, JSON.stringify config
