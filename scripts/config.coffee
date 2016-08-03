@@ -16,10 +16,13 @@ module.exports = (robot) ->
   get_username = (res) ->
     return res.message.user.name
 
-  configdir = "/home/t-jiyunz/teambot/Slack_TeamBot/config"
+  configdir = "/home/t-jiyunz/teambot/Slack_TeamBot/config/"
 
   get_config_file = (userid) ->
-    return configdir + "/config_" + userid + ".json"
+    return configdir + "config_" + userid + ".json"
+
+  user_config = (res) ->
+    JSON.parse fs.readFileSync(get_config_file(get_userid res), 'utf8')
 
   slack.api.users.list ({
     presence:1
@@ -54,7 +57,7 @@ module.exports = (robot) ->
     }
     fs.writeFileSync file,JSON.stringify user_data
 
-  robot.respond /vso config set token/i, (res) ->
+  robot.respond /config set vso token/i, (res) ->
     res.send "Please contact bot admin!"
 
   robot.respond /config set map [^\s\x20\t]+ (.*)$/, (res) ->
@@ -70,3 +73,15 @@ module.exports = (robot) ->
     }
 
     fs.writeFileSync file, JSON.stringify config
+
+  robot.respond /ls config$/, (res) ->
+    if res.message.user.room is res.message.user.name
+      config = user_config res
+      res.send "Default Project : #{config['default project']}"
+      res.send "Default Team : #{config['default team']}"
+      res.send "Mapping :"
+      for item in config['mapping']
+        res.send "Map \"#{item['from']}\" to \"#{item['to']}\""
+    else
+      res.send "Please try this command in direct chat channel."
+

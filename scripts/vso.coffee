@@ -7,10 +7,19 @@ vso = require 'vso-client'
 
 module.exports = (robot) ->
   
-  AuthInfo = "user.txt"
-  authInfo = ->
-    fs.readFileSync AuthInfo, 'utf8'
-  token = authInfo().match(/vsotoken="(.*)"/)[1]
+  get_userid = (res) ->
+    return res.message.user.id
+
+  configdir = "/home/t-jiyunz/teambot/Slack_TeamBot/config/"
+
+  get_config_file = (userid) ->
+    return configdir + "config_" + userid + ".json"
+  
+  user_config = (res) ->
+    JSON.parse fs.readFileSync(get_config_file(get_userid res), 'utf8')
+  
+  get_token = (res) ->
+    user_config(res)['token']
 
   APIv1 = "api-version=1.0"
   APIv2 = "api-version=2.0"
@@ -67,15 +76,14 @@ module.exports = (robot) ->
       DashboardsURL.push obj['url']
       DashboardsID.push obj['id']
 
-  url = "https://:#{token}@mseng.visualstudio.com/DefaultCollection/_apis/projects?api-version=1.0"
-  
-  TeamURL = "https://:#{token}@mseng.visualstudio.com/DefaultCollection/_apis/projects?api-version=1.0"
+  TeamURL = "https://mseng.visualstudio.com/DefaultCollection/_apis/projects?api-version=1.0"
 
 # Get a board /Scenarios, stories and so on./ 
 
   robot.respond /vso get board$/i, (res) ->
-    insert_token_to_url token,TeamURL
-    refresh_project_info TeamURL
+    token = get_token res
+
+    refresh_project_info insert_token_to_url token,TeamURL
     PID = ProjectID[ProjectName.indexOf 'VSOnline']
     
     url2 = "https://:#{token}@mseng.visualstudio.com/DefaultCollection/_apis/projects/" + PID + "/teams?api-version=1.0&$top=1000"
@@ -90,25 +98,23 @@ module.exports = (robot) ->
     url = "https://:#{token}@mseng.visualstudio.com/DefaultCollection/#{PID}/#{TID}/_apis/work/boards?#{APIv2p1}"
     info = request('GET',url).getBody('utf8')
     info = JSON.parse(info)
-    #console.log info['value'][0]['url']
 
     url = insert_token_to_url token,info['value'][0]['url'] + "?" + APIv2p1
 
     info = request('GET',url).getBody('utf8')
-    #console.log JSON.parse(info)
 
 
 # Get Dashboard
 
   robot.respond /vso get dashboard$/i, (res) ->
-    refresh_project_info TeamURL
+    token = get_token res
+
+    refresh_project_info insert_token_to_url token,TeamURL
     PID = ProjectID[ProjectName.indexOf 'VSOnline']
     
     url2 = "https://:#{token}@mseng.visualstudio.com/DefaultCollection/_apis/projects/" + PID + "/teams?api-version=1.0&$top=1000"
     refresh_team_info url2
     TID = TeamID[TeamName.indexOf 'App Experience']
-    console.log TID
-
 
     itemsurl = "https://:#{token}@mseng.visualstudio.com/DefaultCollection" + "/#{PID}/#{TID}" + "/_apis/Dashboard/Dashboards/?api-version=3.0-preview.2"
     refresh_dashboards_info itemsurl
@@ -118,3 +124,62 @@ module.exports = (robot) ->
     console.log dashboardurl
     info = request('GET',dashboardurl).getBody('utf8')
     console.log JSON.parse(info)
+
+# Set VSO default project
+
+  robot.respond /vso set default project (.*)/, (res) ->
+    token = get_token res
+    config = user_config res
+
+    oldProject = config['default project']
+    newProject = res.match[1]
+
+    refresh_project_info insert_token_to_url token, TeamURL
+    
+    newIndex = ProjectName.indexOf newProject
+
+    if newIndex isnt -1
+
+      config['default project'] = newProject
+      config['default PID'] = ProjectID[newIndex]
+      config['default PURL'] = ProjectURL[newIndex]
+
+    else
+
+      res.send "Error : Unknown Project Name."
+      newProject = oldProject
+    
+    res.send "Your old default project : #{oldProject} ."
+    res.send "Your new default project : #{newProject} ."
+
+    fs.writeFileSync (get_config_file get_userid res), JSON.stringify config
+
+# Set VSO default team
+
+  robot.respond /vso set default team (.*)/, (res) ->
+    token = get_token res
+    config = user_config res
+
+    project = config['default project']
+    refresh_team_info insert_token_to_url token, config['default PURL'] + "/teams?#{APIv1}&$top=1000"
+
+    oldTeam = config['default team']
+    newTeam = res.match[1]
+
+    newIndex = TeamName.indexOf newTeam
+
+    if newIndex isnt -1
+
+      config['default team'] = newTeam
+      config['default TID'] = TeamID[newIndex]
+      config['default TURL'] = TeamURL[newIndex]
+
+    else
+
+      res.send "Error : Unknown Team Name."
+      newTeam = oldTeam
+
+    res.send "Your old default team : #{oldTeam} ."
+    res.send "Yout new default team : #{newTeam} ."
+
+    fs.writeFileSync (get_config_file get_userid res), JSON.stringify config
