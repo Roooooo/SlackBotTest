@@ -4,7 +4,7 @@
 request = require 'sync-request'
 fs = require 'fs'
 vso = require 'vso-client'
-
+CronJob = require('cron').CronJob
 module.exports = (robot) ->
   
   get_userid = (res) ->
@@ -16,10 +16,16 @@ module.exports = (robot) ->
     return configdir + "config_" + userid + ".json"
   
   user_config = (res) ->
+    if res is "common"
+      return JSON.parse fs.readFileSync(configdir + "config_common.json", 'utf8')
     JSON.parse fs.readFileSync(get_config_file(get_userid res), 'utf8')
   
   get_token = (res) ->
     user_config(res)['token']
+
+  get_default_pid = (res) ->
+    config = user_config res
+    return config['default PID']
 
   APIv1 = "api-version=1.0"
   APIv2 = "api-version=2.0"
@@ -36,6 +42,9 @@ module.exports = (robot) ->
   TeamName = []
   TeamURL = []
   TeamID = []
+  insert_password_to_url = (username, psw, url) ->
+    url = url.split("\/\/")
+    url[0] + "//#{username}:#{psw}@" + url[1]
 
   insert_token_to_url = (token, url) ->
     url = url.split("\/\/")
@@ -76,40 +85,83 @@ module.exports = (robot) ->
       DashboardsURL.push obj['url']
       DashboardsID.push obj['id']
 
-  TeamURL = "https://mseng.visualstudio.com/DefaultCollection/_apis/projects?api-version=1.0"
+  ProjURL = "https://mseng.visualstudio.com/DefaultCollection/_apis/projects?api-version=1.0"
 
 # Get a board /Scenarios, stories and so on./ 
 
   robot.respond /vso get board$/i, (res) ->
     token = get_token res
 
-    refresh_project_info insert_token_to_url token,TeamURL
+    refresh_project_info insert_token_to_url token,ProjURL
     PID = ProjectID[ProjectName.indexOf 'VSOnline']
     
     url2 = "https://:#{token}@mseng.visualstudio.com/DefaultCollection/_apis/projects/" + PID + "/teams?api-version=1.0&$top=1000"
     refresh_team_info url2
     TID = TeamID[TeamName.indexOf 'App Experience']
 
-    url3 = "https://:#{token}@mseng.visualstudio.com/DefaultCollection/#{PID}/#{TID}/_apis/wit/classificationNodes/iterations?#{APIv1}"
-    info = request('GET',url3).getBody('utf8')
-    info = JSON.parse(info)
-    console.log info
-
     url = "https://:#{token}@mseng.visualstudio.com/DefaultCollection/#{PID}/#{TID}/_apis/work/boards?#{APIv2p1}"
     info = request('GET',url).getBody('utf8')
     info = JSON.parse(info)
-
-    url = insert_token_to_url token,info['value'][0]['url'] + "?" + APIv2p1
+    console.log info
+    url = insert_token_to_url token,info['value'][1]['url'] + "?" + APIv2p1
 
     info = request('GET',url).getBody('utf8')
+    console.log JSON.parse info
 
+# Monitor the request reviewed by users
+
+  check_requests_method = ->
+    config = user_config "common"
+    username = config['vso username']
+    password = config['vso password']
+    -> check_requests(username, password)
+
+  check_requests = (user, psw)->
+    console.log "test"
+    pid = get_default_pid "common"
+    repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
+    repourl = insert_password_to_url user,psw,repourl
+    console.log repourl
+    info = JSON.parse request('GET',repourl).getBody('utf8')
+    console.log info
+    for repo in info['value']
+      requesturl = insert_password_to_url user,psw,repo['url'] + "/pullRequests?#{APIv1}"
+      req = JSON.parse request('GET',url).getBody('utf8')
+      console.log req
+      if req.count isnt 0
+        console.log req.value[0]
+    
+  monitor_review = new CronJob('* * * * * *', check_requests_method(), null, true)
+
+# Get pull requests
+
+  robot.respond /vso get request$/i, (res) ->
+    token = get_token res
+
+    pid = get_default_pid res
+    if pid is undefined
+      res.send "Please set your project first!"
+    else
+      repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
+      repourl = insert_token_to_url token, repourl
+      info = request('GET',repourl).getBody('utf8')
+      info = JSON.parse info
+      for item in info['value']
+        url = insert_token_to_url token, item['url'] + "/pullRequests?#{APIv1}"
+        info = request('GET',url).getBody('utf8')
+        rt = JSON.parse info
+        if rt.count isnt 0
+
+          console.log rt.value[0]
+      
+    
 
 # Get Dashboard
 
   robot.respond /vso get dashboard$/i, (res) ->
     token = get_token res
 
-    refresh_project_info insert_token_to_url token,TeamURL
+    refresh_project_info insert_token_to_url token,ProjURL
     PID = ProjectID[ProjectName.indexOf 'VSOnline']
     
     url2 = "https://:#{token}@mseng.visualstudio.com/DefaultCollection/_apis/projects/" + PID + "/teams?api-version=1.0&$top=1000"
@@ -121,9 +173,8 @@ module.exports = (robot) ->
     DID = DashboardsID[DashboardsName.indexOf 'Overview']
 
     dashboardurl = "https://:#{token}@mseng.visualstudio.com/DefaultCollection" +"/#{PID}/#{TID}" + "/_apis/Dashboard/Dashboards/#{DID}?api-version=3.0-preview.2"
-    console.log dashboardurl
     info = request('GET',dashboardurl).getBody('utf8')
-    console.log JSON.parse(info)
+    info = JSON.parse(info)
 
 # Set VSO default project
 
@@ -134,7 +185,7 @@ module.exports = (robot) ->
     oldProject = config['default project']
     newProject = res.match[1]
 
-    refresh_project_info insert_token_to_url token, TeamURL
+    refresh_project_info insert_token_to_url token, ProjURL
     
     newIndex = ProjectName.indexOf newProject
 
