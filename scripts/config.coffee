@@ -29,7 +29,7 @@ module.exports = (robot) ->
   }), (err,ret) ->
     throw err if err
     for item in ret['members']
-      if item['is_bot'] is false
+      if item['is_bot'] is false and item.name isnt 'slackbot'
         file = get_config_file item['id']
         console.log item['id']
         console.log item['name']
@@ -77,8 +77,8 @@ module.exports = (robot) ->
   robot.respond /ls config$/, (res) ->
     if res.message.user.room is res.message.user.name
       config = user_config res
-      res.send "Default Project : #{config['default project']}"
-      res.send "Default Team : #{config['default team']}"
+      res.send "Default Project : #{config['default_project']}"
+      res.send "Default Team : #{config['default_team']}"
       res.send "Mapping :"
       for item in config['mapping']
         res.send "Map \"#{item['from']}\" to \"#{item['to']}\""

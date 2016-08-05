@@ -196,7 +196,7 @@ module.exports = (robot) ->
 #    refreshList()
 
 # Get a list of build configuration
-  robot.respond /ls(\s(\?|(-[\w\d?]+)))*$/, (res) ->
+  robot.respond /teamcity ls(\s(\?|(-[\w\d?]+)))*$/, (res) ->
     dispAll = false
   
     if res.match[0].match(/ls\s(.*)$/) isnt null
@@ -223,13 +223,13 @@ module.exports = (robot) ->
 
 # Check a build configuration's info by its id
 
-  robot.respond /build\x20info\x20([a-zA-Z\d.-_]+)$/, (res) ->
+  robot.respond /teamcity build\x20info\x20([a-zA-Z\d.-_]+)$/, (res) ->
     res.send "Checking build configuration " + res.match[1]
     tmpURL = BuildConfListURL + "/" + res.match[1]
     res.send get_build_list(request('GET',tmpURL).getBody('utf8'),res,true)
 
 # Build a configuration spcified by its id
-
+###
   robot.respond /build\x20asdasd([a-zA-Z\d.-_\/]+)$/, (res) ->
     res.send "Building " + res.match[1]
     console.log res.match[1]
@@ -265,10 +265,10 @@ module.exports = (robot) ->
         get_error_msg err,r,res
       else
         res.send "Build success."
-
+###
 # Build / Deploy a project
 
-  robot.respond /(build|deploy)\s(.*)$/, (res) ->
+  robot.respond /teamcity (build|deploy)\s(.*)$/, (res) ->
     if refreshflag is false
       refreshList()
     op = res.match[0].split(" ")[1]

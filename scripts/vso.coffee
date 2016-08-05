@@ -42,6 +42,7 @@ module.exports = (robot) ->
   TeamName = []
   TeamURL = []
   TeamID = []
+
   insert_password_to_url = (username, psw, url) ->
     url = url.split("\/\/")
     url[0] + "//#{username}:#{psw}@" + url[1]
@@ -111,27 +112,24 @@ module.exports = (robot) ->
 # Monitor the request reviewed by users
 
   check_requests_method = ->
-    config = user_config "common"
-    username = config['vso username']
-    password = config['vso password']
-    -> check_requests(username, password)
+    -> check_requests()
 
-  check_requests = (user, psw)->
+  check_requests = ()->
     console.log "test"
     pid = get_default_pid "common"
     repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
-    repourl = insert_password_to_url user,psw,repourl
-    console.log repourl
+    repourl = insert_token_to_url get_token("common"),repourl
+    #console.log repourl
     info = JSON.parse request('GET',repourl).getBody('utf8')
-    console.log info
+    #console.log info
     for repo in info['value']
-      requesturl = insert_password_to_url user,psw,repo['url'] + "/pullRequests?#{APIv1}"
-      req = JSON.parse request('GET',url).getBody('utf8')
+      requesturl = insert_token_to_url token,repo['url'] + "/pullRequests?#{APIv1}"
+      req = JSON.parse request('GET',requesturl).getBody('utf8')
       console.log req
       if req.count isnt 0
         console.log req.value[0]
     
-  monitor_review = new CronJob('* * * * * *', check_requests_method(), null, true)
+  monitor_review = new CronJob('0 */1 * * * *', check_requests_method(), null, true)
 
 # Get pull requests
 
@@ -182,7 +180,7 @@ module.exports = (robot) ->
     token = get_token res
     config = user_config res
 
-    oldProject = config['default project']
+    oldProject = config['default_project']
     newProject = res.match[1]
 
     refresh_project_info insert_token_to_url token, ProjURL
@@ -191,9 +189,9 @@ module.exports = (robot) ->
 
     if newIndex isnt -1
 
-      config['default project'] = newProject
-      config['default PID'] = ProjectID[newIndex]
-      config['default PURL'] = ProjectURL[newIndex]
+      config['default_project'] = newProject
+      config['default_PID'] = ProjectID[newIndex]
+      config['default_PURL'] = ProjectURL[newIndex]
 
     else
 
@@ -211,19 +209,22 @@ module.exports = (robot) ->
     token = get_token res
     config = user_config res
 
-    project = config['default project']
-    refresh_team_info insert_token_to_url token, config['default PURL'] + "/teams?#{APIv1}&$top=1000"
+    project = config['default_project']
+    if project is undefined
+      res.send "Please set your default project first."
+      return
+    refresh_team_info insert_token_to_url token, config['default_PURL'] + "/teams?#{APIv1}&$top=1000"
 
-    oldTeam = config['default team']
+    oldTeam = config['default_team']
     newTeam = res.match[1]
 
     newIndex = TeamName.indexOf newTeam
 
     if newIndex isnt -1
 
-      config['default team'] = newTeam
-      config['default TID'] = TeamID[newIndex]
-      config['default TURL'] = TeamURL[newIndex]
+      config['default_team'] = newTeam
+      config['default_TID'] = TeamID[newIndex]
+      config['default_TURL'] = TeamURL[newIndex]
 
     else
 
