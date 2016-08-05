@@ -24,6 +24,10 @@ module.exports = (robot) ->
   user_config = (res) ->
     JSON.parse fs.readFileSync(get_config_file(get_userid res), 'utf8')
 
+  insert_token_to_url = (token, url) ->
+    url = url.split("\/\/")
+    url[0] + "//:#{token}@" + url[1]
+
   slack.api.users.list ({
     presence:1
   }), (err,ret) ->
@@ -33,7 +37,7 @@ module.exports = (robot) ->
         file = get_config_file item['id']
         console.log item['id']
         console.log item['name']
-        console.log file
+        console.log item
         exist = fs.existsSync file
         if exist is false
           user_data = {
@@ -45,6 +49,23 @@ module.exports = (robot) ->
         
           console.log user_data
           fs.writeFileSync file, JSON.stringify(user_data)
+        else
+          config = JSON.parse fs.readFileSync(get_config_file item.id,'utf8')
+          console.log config
+          if config.token is undefined
+            slack.api.chat.postMessage ({
+              channel:"@#{item.name}"
+              text:"Please set your vso token."
+              as_user:true
+            }), (e,r) ->
+              throw e if e
+          else
+            token = config.token
+            insert_token_to_url token, "https://mseng.visualstudio.com/DefaultCollection/_apis/projects/"
+            # TODO: how to get profile with basic auth?
+            console.log profileurl
+            info = request('GET',profileurl).getBody('utf8')
+            console.log JSON.parse info
 
   robot.respond /vso config init$/i, (res) ->
     file = get_config_file get_userid res

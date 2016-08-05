@@ -25,7 +25,7 @@ module.exports = (robot) ->
 
   get_default_pid = (res) ->
     config = user_config res
-    return config['default PID']
+    return config['default_PID']
 
   APIv1 = "api-version=1.0"
   APIv2 = "api-version=2.0"
@@ -50,6 +50,9 @@ module.exports = (robot) ->
   insert_token_to_url = (token, url) ->
     url = url.split("\/\/")
     url[0] + "//:#{token}@" + url[1]
+
+
+
 
   refresh_project_info = (url) ->
     info = JSON.parse(request('GET',url).getBody('utf8'))['value']
@@ -112,24 +115,25 @@ module.exports = (robot) ->
 # Monitor the request reviewed by users
 
   check_requests_method = ->
-    -> check_requests()
+    token = get_token "common"
+    -> check_requests(token)
 
-  check_requests = ()->
+  check_requests = (token)->
     console.log "test"
     pid = get_default_pid "common"
     repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
-    repourl = insert_token_to_url get_token("common"),repourl
-    #console.log repourl
+    repourl = insert_token_to_url token,repourl
+    console.log repourl
     info = JSON.parse request('GET',repourl).getBody('utf8')
-    #console.log info
     for repo in info['value']
-      requesturl = insert_token_to_url token,repo['url'] + "/pullRequests?#{APIv1}"
-      req = JSON.parse request('GET',requesturl).getBody('utf8')
-      console.log req
-      if req.count isnt 0
-        console.log req.value[0]
-    
-  monitor_review = new CronJob('0 */1 * * * *', check_requests_method(), null, true)
+      requesturl = insert_token_to_url token,repo['url'] + "/pullRequests?#{APIv2}"
+      requests = JSON.parse request('GET',requesturl).getBody('utf8')
+      for request in requests.value
+        if request.status is 'active'
+          for reviewer in request.reviewers
+            return
+        # TODO: check if the reviewer is team member, then send direct message.
+  monitor_review = new CronJob('*/30 * * * * *', check_requests_method(), null, true)
 
 # Get pull requests
 

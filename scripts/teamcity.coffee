@@ -229,7 +229,7 @@ module.exports = (robot) ->
     res.send get_build_list(request('GET',tmpURL).getBody('utf8'),res,true)
 
 # Build a configuration spcified by its id
-###
+
   robot.respond /build\x20asdasd([a-zA-Z\d.-_\/]+)$/, (res) ->
     res.send "Building " + res.match[1]
     console.log res.match[1]
@@ -265,7 +265,7 @@ module.exports = (robot) ->
         get_error_msg err,r,res
       else
         res.send "Build success."
-###
+
 # Build / Deploy a project
 
   robot.respond /teamcity (build|deploy)\s(.*)$/, (res) ->
