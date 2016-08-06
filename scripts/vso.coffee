@@ -119,7 +119,9 @@ module.exports = (robot) ->
     -> check_requests(token)
 
   check_requests = (token)->
-    console.log "test"
+    common = user_config "common"
+    team_members = common.team_members
+
     pid = get_default_pid "common"
     repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
     repourl = insert_token_to_url token,repourl
@@ -128,11 +130,18 @@ module.exports = (robot) ->
     for repo in info['value']
       requesturl = insert_token_to_url token,repo['url'] + "/pullRequests?#{APIv2}"
       requests = JSON.parse request('GET',requesturl).getBody('utf8')
-      for request in requests.value
-        if request.status is 'active'
-          for reviewer in request.reviewers
-            return
-        # TODO: check if the reviewer is team member, then send direct message.
+      for req in requests.value
+        if req.status is 'active'
+          for reviewer in req.reviewers
+            #slack.api.users.list
+            for user in team_members
+              if reviewer.uniquename is user.email
+                slack.api.char.postMessage ({
+                  channel:"@#{user.name}"
+                  text:"There's a pull request to review."
+                  as_user:true
+                }), (e,r) ->
+                  throw e if e
   monitor_review = new CronJob('*/30 * * * * *', check_requests_method(), null, true)
 
 # Get pull requests

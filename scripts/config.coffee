@@ -22,6 +22,8 @@ module.exports = (robot) ->
     return configdir + "config_" + userid + ".json"
 
   user_config = (res) ->
+    if res is "common"
+      return JSON.parse fs.readFileSync(get_config_file res),'utf8'
     JSON.parse fs.readFileSync(get_config_file(get_userid res), 'utf8')
 
   insert_token_to_url = (token, url) ->
@@ -32,12 +34,22 @@ module.exports = (robot) ->
     presence:1
   }), (err,ret) ->
     throw err if err
+    #commonconfig = {
+    #  token:'kstv4d3hdbj525sr3dvzagims7o7fvyvk3pyyedmqghif7a2xvpq'
+    #}
+    commonconfig = user_config "common"
+    commonconfig.team_members = []
     for item in ret['members']
       if item['is_bot'] is false and item.name isnt 'slackbot'
         file = get_config_file item['id']
         console.log item['id']
         console.log item['name']
         console.log item
+        commonconfig.team_members.push ({
+          id:item.id
+          name:item.name
+          email:item.profile.email
+        })
         exist = fs.existsSync file
         if exist is false
           user_data = {
@@ -45,13 +57,17 @@ module.exports = (robot) ->
             name:item['name']
             token:null
             mapping:{}
+            email:item.email
           }
         
           console.log user_data
           fs.writeFileSync file, JSON.stringify(user_data)
         else
           config = JSON.parse fs.readFileSync(get_config_file item.id,'utf8')
-          console.log config
+          if config.email isnt item.profile.email or config.name isnt item.name
+            config.email = item.profile.email
+            config.name = item.name
+            fs.writeFileSync file,JSON.stringify config,'utf8'
           if config.token is undefined
             slack.api.chat.postMessage ({
               channel:"@#{item.name}"
@@ -59,13 +75,8 @@ module.exports = (robot) ->
               as_user:true
             }), (e,r) ->
               throw e if e
-          else
-            token = config.token
-            insert_token_to_url token, "https://mseng.visualstudio.com/DefaultCollection/_apis/projects/"
-            # TODO: how to get profile with basic auth?
-            console.log profileurl
-            info = request('GET',profileurl).getBody('utf8')
-            console.log JSON.parse info
+    console.log commonconfig
+    fs.writeFileSync (get_config_file "common"),(JSON.stringify commonconfig),'utf8'
 
   robot.respond /vso config init$/i, (res) ->
     file = get_config_file get_userid res
