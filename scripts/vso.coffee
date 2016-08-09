@@ -10,7 +10,7 @@ module.exports = (robot) ->
   get_userid = (res) ->
     return res.message.user.id
 
-  configdir = "/home/t-jiyunz/teambot/Slack_TeamBot/config/"
+  configdir = "/home/t-jiyunz/teambot/Slack_TeamBot/" + process.env.CONFIG_DIR
 
   get_config_file = (userid) ->
     return configdir + "config_" + userid + ".json"
@@ -25,7 +25,7 @@ module.exports = (robot) ->
 
   get_default_pid = (res) ->
     config = user_config res
-    return config['default_PID']
+    return config.project.id
 
   APIv1 = "api-version=1.0"
   APIv2 = "api-version=2.0"
@@ -50,9 +50,6 @@ module.exports = (robot) ->
   insert_token_to_url = (token, url) ->
     url = url.split("\/\/")
     url[0] + "//:#{token}@" + url[1]
-
-
-
 
   refresh_project_info = (url) ->
     info = JSON.parse(request('GET',url).getBody('utf8'))['value']
@@ -125,8 +122,8 @@ module.exports = (robot) ->
     pid = get_default_pid "common"
     repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
     repourl = insert_token_to_url token,repourl
-    console.log repourl
     info = JSON.parse request('GET',repourl).getBody('utf8')
+    console.log info.value[0]
     for repo in info['value']
       requesturl = insert_token_to_url token,repo['url'] + "/pullRequests?#{APIv2}"
       requests = JSON.parse request('GET',requesturl).getBody('utf8')
@@ -138,11 +135,12 @@ module.exports = (robot) ->
               if reviewer.uniquename is user.email
                 slack.api.char.postMessage ({
                   channel:"@#{user.name}"
-                  text:"There's a pull request to review."
+                  text:"Hi #{user.name}, There's a pull request for you to review."
                   as_user:true
                 }), (e,r) ->
                   throw e if e
-  monitor_review = new CronJob('*/30 * * * * *', check_requests_method(), null, true)
+
+  #monitor_review = new CronJob('* * */1 * * *', check_requests_method(), null, true)
 
 # Get pull requests
 
@@ -193,7 +191,7 @@ module.exports = (robot) ->
     token = get_token res
     config = user_config res
 
-    oldProject = config['default_project']
+    oldProject = config.project.name
     newProject = res.match[1]
 
     refresh_project_info insert_token_to_url token, ProjURL
@@ -202,9 +200,9 @@ module.exports = (robot) ->
 
     if newIndex isnt -1
 
-      config['default_project'] = newProject
-      config['default_PID'] = ProjectID[newIndex]
-      config['default_PURL'] = ProjectURL[newIndex]
+      config.project['name'] = newProject
+      config.project['id'] = ProjectID[newIndex]
+      config.project['url'] = ProjectURL[newIndex]
 
     else
 
@@ -222,22 +220,22 @@ module.exports = (robot) ->
     token = get_token res
     config = user_config res
 
-    project = config['default_project']
+    project = config.project.name
     if project is undefined
       res.send "Please set your default project first."
       return
-    refresh_team_info insert_token_to_url token, config['default_PURL'] + "/teams?#{APIv1}&$top=1000"
+    refresh_team_info insert_token_to_url token, config.project.url + "/teams?#{APIv1}&$top=1000"
 
-    oldTeam = config['default_team']
+    oldTeam = config.team.name
     newTeam = res.match[1]
 
     newIndex = TeamName.indexOf newTeam
 
     if newIndex isnt -1
 
-      config['default_team'] = newTeam
-      config['default_TID'] = TeamID[newIndex]
-      config['default_TURL'] = TeamURL[newIndex]
+      config.team['name'] = newTeam
+      config.team['id'] = TeamID[newIndex]
+      config.team['url'] = TeamURL[newIndex]
 
     else
 
@@ -248,3 +246,58 @@ module.exports = (robot) ->
     res.send "Yout new default team : #{newTeam} ."
 
     fs.writeFileSync (get_config_file get_userid res), JSON.stringify config
+
+  robot.respond /vso set default repo (.*)/, (res) ->
+   
+    token = get_token res
+    config = user_config res
+
+    oldrepo = config.repo
+    if oldrepo is undefined
+      oldrepo = {
+        name:undefined
+      }
+    newrepo = {
+      name:res.match[1]
+    }
+
+    pid = get_default_pid res
+    repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
+    repourl = insert_token_to_url token, repourl
+
+    info = JSON.parse request('GET',repourl).getBody('utf8')
+  
+    for repo in info.value
+      console.log repo.name
+      if repo.name is newrepo.name
+        newrepo.id = repo.id
+        newrepo.url = repo.url
+        config.repo = newrepo
+
+        res.send "Your old default repo : #{oldrepo.name}."
+        res.send "Your new default repo : #{newrepo.name}."
+          
+        fs.writeFileSync (get_config_file res),(JSON.stringify config)
+        return
+    
+    res.send "#{res.match[1]} is not a correct repo name."
+
+  robot.respond /vso ls repo$/, (res) ->
+    token = get_token res
+    config = user_config res
+
+    pid = get_default_pid res
+    if pid is undefined
+      res.send "Please set your default project first."
+      return
+
+    repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
+    repourl = insert_token_to_url token, repourl
+
+    info = JSON.parse request('GET',repourl).getBody('utf8')
+    msg = ""
+    console.log info.value
+    for repo in info.value
+      msg = msg + "Repo name : #{repo.name}\n"
+
+    res.send msg

@@ -16,7 +16,7 @@ module.exports = (robot) ->
   get_username = (res) ->
     return res.message.user.name
 
-  configdir = "/home/t-jiyunz/teambot/Slack_TeamBot/config/"
+  configdir = "/home/t-jiyunz/teambot/Slack_TeamBot/" + process.env.CONFIG_DIR
 
   get_config_file = (userid) ->
     return configdir + "config_" + userid + ".json"
@@ -37,14 +37,19 @@ module.exports = (robot) ->
     #commonconfig = {
     #  token:'kstv4d3hdbj525sr3dvzagims7o7fvyvk3pyyedmqghif7a2xvpq'
     #}
+    exist = fs.existsSync get_config_file "common"
+    if exist is false
+      common_data = {
+        token:null
+        team_members:[]
+      }
+      fs.writeFileSync (get_config_file "common"), (JSON.stringify common_data)
     commonconfig = user_config "common"
     commonconfig.team_members = []
     for item in ret['members']
       if item['is_bot'] is false and item.name isnt 'slackbot'
         file = get_config_file item['id']
-        console.log item['id']
-        console.log item['name']
-        console.log item
+        console.log item.id
         commonconfig.team_members.push ({
           id:item.id
           name:item.name
@@ -52,29 +57,34 @@ module.exports = (robot) ->
         })
         exist = fs.existsSync file
         if exist is false
+          console.log item['name']
           user_data = {
             id:item['id']
             name:item['name']
             token:null
-            mapping:{}
+            mapping:[]
             email:item.email
+            project:{}
+            team:{}
           }
         
           console.log user_data
           fs.writeFileSync file, JSON.stringify(user_data)
         else
           config = JSON.parse fs.readFileSync(get_config_file item.id,'utf8')
+          #config = user_config "common"
+          console.log config
           if config.email isnt item.profile.email or config.name isnt item.name
             config.email = item.profile.email
             config.name = item.name
             fs.writeFileSync file,JSON.stringify config,'utf8'
-          if config.token is undefined
-            slack.api.chat.postMessage ({
-              channel:"@#{item.name}"
-              text:"Please set your vso token."
-              as_user:true
-            }), (e,r) ->
-              throw e if e
+          #if config.token is undefined
+          #  slack.api.chat.postMessage ({
+          #    channel:"@#{item.name}"
+          #    text:"Please set your vso token."
+          #    as_user:true
+          #  }), (e,r) ->
+          #    throw e if e
     console.log commonconfig
     fs.writeFileSync (get_config_file "common"),(JSON.stringify commonconfig),'utf8'
 
@@ -89,15 +99,22 @@ module.exports = (robot) ->
     }
     fs.writeFileSync file,JSON.stringify user_data
 
-  robot.respond /config set vso token/i, (res) ->
-    res.send "Please contact bot admin!"
+  robot.respond /config set vso token ([0-9a-zA-Z]+)/i, (res) ->
+    #res.send "Please contact bot admin!"
+    file = get_config_file get_userid res
+    config = user_config res
+    config.token = res.match[1]
+    console.log config
+    console.log file
+    fs.writeFileSync file,(JSON.stringify config),'utf8'
 
-  robot.respond /config set map [^\s\x20\t]+ (.*)$/, (res) ->
+
+  robot.respond /config set map ([^\s\x20\t]+) (.*)$/, (res) ->
     file = get_config_file get_userid res
     config = JSON.parse fs.readFileSync file, 'utf8'
 
-    from = res.match[0].split('map ')[1].split(' ')[0]
-    to = res.match[1]
+    from = res.match[1]
+    to = res.match[2]
 
     config['mapping'].push {
       from:from
@@ -109,10 +126,10 @@ module.exports = (robot) ->
   robot.respond /ls config$/, (res) ->
     if res.message.user.room is res.message.user.name
       config = user_config res
-      res.send "Default Project : #{config['default_project']}"
-      res.send "Default Team : #{config['default_team']}"
+      res.send "Default Project : #{config.project.name}"
+      res.send "Default Team : #{config.team.name}"
       res.send "Mapping :"
-      for item in config['mapping']
+      for item in config.mapping
         res.send "Map \"#{item['from']}\" to \"#{item['to']}\""
     else
       res.send "Please try this command in direct chat channel."

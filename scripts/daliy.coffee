@@ -34,10 +34,14 @@ module.exports = (robot) ->
   token = process.env.HUBOT_SLACK_TOKEN || ''
   slack = new SlackClient(token)
 
-  #robot.hear /test/i, (res) ->
-  #  slack.api.channels.list null, (err, res) ->
-  #    throw err if err
-  #    console.log res
+  robot.respond /test1$/, (res) ->
+    console.log "sleeping"
+    sleep(10000)
+    console.log "wake up"
+
+  robot.respond /test2$/, (res) ->
+    console.log "get"
+
   sleep = (ms) ->
     start = new Date().getTime()
     continue while new Date().getTime() - start < ms
