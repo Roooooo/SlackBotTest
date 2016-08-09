@@ -163,8 +163,6 @@ module.exports = (robot) ->
 
           console.log rt.value[0]
       
-    
-
 # Get Dashboard
 
   robot.respond /vso get dashboard$/i, (res) ->
@@ -301,3 +299,17 @@ module.exports = (robot) ->
       msg = msg + "Repo name : #{repo.name}\n"
 
     res.send msg
+
+  robot.respond /vso ls bugs/, (res) ->
+    token = get_token res
+    pid = get_default_pid res
+
+    wiqlurl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/wit/wiql?#{APIv1}"
+    wiqlurl = insert_token_to_url token,wiqlurl
+
+    query = {
+    }
+    info = request('POST',wiqlurl,{
+      json:{"query":"SELECT [System.Id] FROM WorkItems WHERE [System.WorkItemType] = 'Bug'"}
+    }).getBody('utf8')
+    console.log JSON.parse info
