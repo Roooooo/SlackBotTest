@@ -300,7 +300,7 @@ module.exports = (robot) ->
 
     res.send msg
 
-  robot.respond /vso ls bugs/, (res) ->
+  robot.respond /vso ls bug$/, (res) ->
     token = get_token res
     pid = get_default_pid res
 
@@ -308,8 +308,46 @@ module.exports = (robot) ->
     wiqlurl = insert_token_to_url token,wiqlurl
 
     query = {
+      json:{"query":"SELECT [System.Id],[System.Title],[System.State]
+        FROM WorkItems 
+        WHERE [System.WorkItemType] = 'Bug' AND [System.AssignedTo] = @Me AND [System.State] = 'Active'"}
     }
-    info = request('POST',wiqlurl,{
-      json:{"query":"SELECT [System.Id] FROM WorkItems WHERE [System.WorkItemType] = 'Bug'"}
-    }).getBody('utf8')
+    info = JSON.parse request('POST',wiqlurl,query).getBody('utf8')
+    
+    console.log info
+
+    for bug in info.workItems
+      bugurl = insert_token_to_url token,bug.url
+      
+      buginfo = JSON.parse request('GET',bugurl).getBody('utf8')
+      console.log buginfo
+
+  robot.respond /vso resolve bug ([0-9]+)$/, (res) ->
+    set_bug_state res.match[1], "resolved", res
+
+  robot.respond /vso close bug ([0-9]+)$/, (res) ->
+    set_bug_state res.match[1], "closed", res
+
+
+  set_bug_state = (bugid, newstate, res) ->
+    token = get_token res
+    pid = get_default_pid res
+
+    bugurl = "https://mseng.visualstudio.com/DefaultCollection/_apis/wit/workitems/#{bugid}?#{APIv1}"
+    bugurl = insert_token_to_url token, bugurl
+    info = JSON.parse request('GET',bugurl).getBody('utf8')
+
+    patch = {
+      headers:{"Content-type":"application/json-patch+json"}
+      body:JSON.stringify([
+        {
+          op:"replace"
+          path:"/fields/System.State"
+          value:newstate
+        }
+      ])
+    }
+    info = request('PATCH',bugurl,patch).getBody('utf8')
     console.log JSON.parse info
+
+   
