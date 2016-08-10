@@ -5,8 +5,13 @@ request = require 'sync-request'
 fs = require 'fs'
 vso = require 'vso-client'
 CronJob = require('cron').CronJob
+SlackClient = require 'slack-api-client'
+slack = new SlackClient(process.env.HUBOT_SLACK_TOKEN)
+
 module.exports = (robot) ->
-  
+  get_username = (res) ->
+    return "@#{res.message.user.name}"
+
   get_userid = (res) ->
     return res.message.user.id
 
@@ -133,7 +138,7 @@ module.exports = (robot) ->
             #slack.api.users.list
             for user in team_members
               if reviewer.uniquename is user.email
-                slack.api.char.postMessage ({
+                slack.api.chat.postMessage ({
                   channel:"@#{user.name}"
                   text:"Hi #{user.name}, There's a pull request for you to review."
                   as_user:true
@@ -300,27 +305,68 @@ module.exports = (robot) ->
 
     res.send msg
 
-  robot.respond /vso ls bug$/, (res) ->
+  robot.respond /vso ls bug( -s .*)?$/, (res) ->
     token = get_token res
     pid = get_default_pid res
 
     wiqlurl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/wit/wiql?#{APIv1}"
     wiqlurl = insert_token_to_url token,wiqlurl
+    
+    statemsg = ""
+    console.log res.match
+    states = ""
+    if res.match[1] isnt undefined
+      for state in res.match[1].split(' ')
+        console.log state
+        if states isnt ""
+          statemsg = statemsg + " "
+          states = states + ","
+        if state is "active"
+          states = states + "'Active'"
+        if state is "resolved"
+          states = states + "'Resolved'"
+        if state is "closed"
+          states = states + "'Closed'"
+        statemsg = statemsg + state
+    else
+      states = "'Active'"
+      statemsg = "active"
+
+    console.log states
 
     query = {
       json:{"query":"SELECT [System.Id],[System.Title],[System.State]
         FROM WorkItems 
-        WHERE [System.WorkItemType] = 'Bug' AND [System.AssignedTo] = @Me AND [System.State] = 'Active'"}
+        WHERE [System.WorkItemType] = 'Bug' AND [System.AssignedTo] = @Me AND [System.State] IN (#{states})"}
     }
     info = JSON.parse request('POST',wiqlurl,query).getBody('utf8')
     
     console.log info
+    
+    msg = {
+      text:"Your #{statemsg} bugs are as below."
+      attachments:[{
+        mrkdwn_in:[
+          "text"
+        ]
+      }]
+    }
 
+    text = ""
     for bug in info.workItems
       bugurl = insert_token_to_url token,bug.url
       
+      console.log get_username res
       buginfo = JSON.parse request('GET',bugurl).getBody('utf8')
-      console.log buginfo
+      text = text + "Bug ID : #{buginfo.id}\t\tBug Name : #{buginfo.fields['System.Title']}\n"
+    msg.attachments.text = text
+    console.log msg
+    slack.api.chat.postMessage ({
+      channel:get_username res
+      text:msg
+      as_user:true
+    }), (e,r) ->
+      throw e if e
 
   robot.respond /vso resolve bug ([0-9]+)$/, (res) ->
     set_bug_state res.match[1], "resolved", res
@@ -350,4 +396,45 @@ module.exports = (robot) ->
     info = request('PATCH',bugurl,patch).getBody('utf8')
     console.log JSON.parse info
 
-   
+  robot.respond /vso ls build (definition|def)(.*)$/,(res) ->
+    token = get_token res
+    pid = get_default_pid res
+
+    beginwith = ""
+    if res.match[2] isnt ''
+      word = res.match[2].split(' ')[1]
+      beginwith = "&name=#{word}*"
+
+    defurl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/build/definitions?#{APIv2}#{beginwith}"
+    defurl = insert_token_to_url token,defurl
+
+    info = JSON.parse request('GET',defurl).getBody('utf8')
+    msg = ""
+    for def in info.value
+      author = def.authoredBy
+      if author isnt undefined
+        author = author.displayName
+      msg = msg + "Build definition: #{def.name}, AuthoredBy: #{author}, id: #{def.id}\n"
+
+    res.send msg
+
+  robot.respond /vso queue build ([0-9]+)( -b .*)?/, (res) ->
+    token = get_token res
+    pid = get_default_pid res
+    
+    post = {
+      definition:{
+        id:res.match[1]
+      }
+    }
+    if res.match[2] isnt undefined
+      post.sourceBranch = res.match[2].split(' ')[2]
+
+    buildurl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/build/builds?#{APIv2}"
+    buildurl = insert_token_to_url token,buildurl
+
+    info = JSON.parse request('POST',buildurl,{
+      json:post
+    }).getBody('utf8')
+    console.log info
+# TODO : send feedback to slack

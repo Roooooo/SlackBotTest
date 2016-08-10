@@ -49,7 +49,7 @@ module.exports = (robot) ->
     for item in ret['members']
       if item['is_bot'] is false and item.name isnt 'slackbot'
         file = get_config_file item['id']
-        console.log item.id
+#        console.log item.id
         commonconfig.team_members.push ({
           id:item.id
           name:item.name
@@ -68,12 +68,12 @@ module.exports = (robot) ->
             team:{}
           }
         
-          console.log user_data
+#          console.log user_data
           fs.writeFileSync file, JSON.stringify(user_data)
         else
           config = JSON.parse fs.readFileSync(get_config_file item.id,'utf8')
           #config = user_config "common"
-          console.log config
+#          console.log config
           if config.email isnt item.profile.email or config.name isnt item.name
             config.email = item.profile.email
             config.name = item.name
@@ -85,7 +85,7 @@ module.exports = (robot) ->
           #    as_user:true
           #  }), (e,r) ->
           #    throw e if e
-    console.log commonconfig
+#    console.log commonconfig
     fs.writeFileSync (get_config_file "common"),(JSON.stringify commonconfig),'utf8'
 
   robot.respond /vso config init$/i, (res) ->
