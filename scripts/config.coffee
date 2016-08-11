@@ -122,6 +122,7 @@ module.exports = (robot) ->
     }
 
     fs.writeFileSync file, JSON.stringify config
+    res.send "Now #{from} is map to #{to}."
 
   robot.respond /ls config$/, (res) ->
     if res.message.user.room is res.message.user.name

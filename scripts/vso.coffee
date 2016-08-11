@@ -327,7 +327,8 @@ module.exports = (robot) ->
           states = states + "'Resolved'"
         if state is "closed"
           states = states + "'Closed'"
-        statemsg = statemsg + state
+        if state isnt "-s"
+          statemsg = statemsg + state
     else
       states = "'Active'"
       statemsg = "active"
@@ -343,30 +344,53 @@ module.exports = (robot) ->
     
     console.log info
     
-    msg = {
-      text:"Your #{statemsg} bugs are as below."
-      attachments:[{
-        mrkdwn_in:[
-          "text"
-        ]
-      }]
-    }
+    attachments = []
 
-    text = ""
+    cnt = 0
+
     for bug in info.workItems
+      cnt = cnt + 1
+      bugobj = {}
+
       bugurl = insert_token_to_url token,bug.url
-      
-      console.log get_username res
       buginfo = JSON.parse request('GET',bugurl).getBody('utf8')
-      text = text + "Bug ID : #{buginfo.id}\t\tBug Name : #{buginfo.fields['System.Title']}\n"
-    msg.attachments.text = text
-    console.log msg
+      console.log buginfo
+      state = buginfo.fields['System.State']
+      if state is 'resolved'
+        bugobj.color = "good"
+      if state is 'Active'
+        bugobj.color = "danger"
+      
+      bugobj.pretext = ""
+      bugobj.fields = []
+
+      bugobj.fields.push build_attach_obj "Bug ID",buginfo.id,true
+
+      assigned = buginfo.fields['System.AssignedTo'].split('<')[0]
+      bugobj.fields.push build_attach_obj "Bug Assigned To",assigned,true
+      bugobj.fields.push build_attach_obj "Bug Name",buginfo.fields['System.Title'],true
+      bugobj.fields.push build_attach_obj "Priority",buginfo.fields['Microsoft.VSTS.Common.Priority'],true
+      bugobj.fields.push build_attach_obj "State",buginfo.fields['System.State'],true
+      attachments.push bugobj
+
+    channel = get_username res
+
+    #console.log msg.attachments
     slack.api.chat.postMessage ({
-      channel:get_username res
-      text:msg
+      channel:"#general",
+      text:"Here are #{cnt} #{states} bugs.",
+      attachments:JSON.stringify attachments,
       as_user:true
     }), (e,r) ->
       throw e if e
+
+  build_attach_obj = (title,value,short) ->
+    obj = {
+      title:title,
+      value:value,
+      short:short
+    }
+    return obj
 
   robot.respond /vso resolve bug ([0-9]+)$/, (res) ->
     set_bug_state res.match[1], "resolved", res

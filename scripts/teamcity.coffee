@@ -98,7 +98,7 @@ module.exports = (robot) ->
 
   get_build_list = (xml, res, dispAll) ->
     BuildNumber = xml.match(/<buildTypes\x20count="(\d+)[^>]+>/g)[0].match(/\d+/g)[0]
-    res.send "There are #{BuildNumber} build configurations."
+    #res.send "There are #{BuildNumber} build configurations."
 
     Info = ""
 
@@ -123,18 +123,40 @@ module.exports = (robot) ->
     if dispAll is true
       DisplayNum = 5
 
+    attachments = []
+
     BuildConfList = xml.match(/<buildType\x20id=([^>]+)>/g)
     for BuildConf in BuildConfList
+      buildobj = {
+        pretext:"",
+        fields:[]
+      }
       for i in [0...DisplayNum]
+       
         pattern = BuildConfPattern[i]
         dim = PatternDim[i]
         tmp = BuildConf.match(pattern)
+        buildobj.fields.push {
+          title:dim,
+          short:true
+        }
         if tmp is null
           Info = Info + "#{dim} : Undefined\t"
+          buildobj.fields[i].value = "Undefined."
         else
           Info = Info + "#{dim} : #{tmp[1]}\t"
+          buildobj.fields[i].value = tmp[1]
       Info = Info + "\n"
-    res.send Info
+      attachments.push buildobj
+    #res.send Info
+    console.log attachments
+    slack.api.chat.postMessage ({
+      channel:"#general",
+      text:" ",
+      attachments:JSON.stringify attachments,
+      as_user:true
+    }), (e,r) ->
+      throw e if e
 
 # Test if its a valid domain
   test_domain = (inp) ->
@@ -271,7 +293,7 @@ module.exports = (robot) ->
   robot.respond /teamcity (build|deploy)\s(.*)$/, (res) ->
     if refreshflag is false
       refreshList()
-    op = res.match[0].split(" ")[1]
+    op = res.match[0].split(" ")[2]
     slices = res.match[2].split("\"")
     if slices.length is 1
       # no quotes
