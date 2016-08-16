@@ -39,9 +39,6 @@ module.exports = (robot) ->
     sleep(10000)
     console.log "wake up"
 
-  robot.respond /test2$/, (res) ->
-    console.log "get"
-
   sleep = (ms) ->
     start = new Date().getTime()
     continue while new Date().getTime() - start < ms

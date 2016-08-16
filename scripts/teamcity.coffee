@@ -149,9 +149,9 @@ module.exports = (robot) ->
       Info = Info + "\n"
       attachments.push buildobj
     #res.send Info
-    console.log attachments
+    #console.log attachments
     slack.api.chat.postMessage ({
-      channel:"#general",
+      channel:get_username res,
       text:" ",
       attachments:JSON.stringify attachments,
       as_user:true
@@ -289,8 +289,10 @@ module.exports = (robot) ->
         res.send "Build success."
 
 # Build / Deploy a project
+# TEST
 
-  robot.respond /teamcity (build|deploy)\s(.*)$/, (res) ->
+  robot.respond /teamcity (build|deploy)\s([^-]+)( -p (.*))?$/, (res) ->
+    console.log res.match
     if refreshflag is false
       refreshList()
     op = res.match[0].split(" ")[2]
@@ -430,7 +432,7 @@ module.exports = (robot) ->
           throw err if err
     if status is "finished"
       slack.api.chat.postMessage ({
-        channel:channel,
+        channel:"#general",
         text:"Your build has finished.",
         as_user:true
       }), (err,ret) ->

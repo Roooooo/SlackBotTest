@@ -21,6 +21,9 @@ module.exports = (robot) ->
   get_config_file = (userid) ->
     return configdir + "config_" + userid + ".json"
 
+  robot.respond /test2/,(res) ->
+    res.send "get"
+
   user_config = (res) ->
     if res is "common"
       return JSON.parse fs.readFileSync(get_config_file res),'utf8'

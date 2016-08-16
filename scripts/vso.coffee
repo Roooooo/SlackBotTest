@@ -377,7 +377,7 @@ module.exports = (robot) ->
 
     #console.log msg.attachments
     slack.api.chat.postMessage ({
-      channel:"#general",
+      channel:channel,
       text:"Here are #{cnt} #{states} bugs.",
       attachments:JSON.stringify attachments,
       as_user:true
@@ -419,6 +419,7 @@ module.exports = (robot) ->
     }
     info = request('PATCH',bugurl,patch).getBody('utf8')
     console.log JSON.parse info
+    res.send "Bug #{bugid} has been set to #{newstate}."
 
   robot.respond /vso ls build (definition|def)(.*)$/,(res) ->
     token = get_token res
@@ -462,3 +463,6 @@ module.exports = (robot) ->
     }).getBody('utf8')
     console.log info
 # TODO : send feedback to slack
+
+  robot.respond /vso pull request( -s (.*) -t (.*))/, (res) ->
+    console.log res.match
