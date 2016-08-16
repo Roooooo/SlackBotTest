@@ -158,7 +158,6 @@ module.exports = (robot) ->
     }), (e,r) ->
       throw e if e
 
-# TESTTEST
 # Test if its a valid domain
   test_domain = (inp) ->
     olddomain = domain
