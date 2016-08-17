@@ -15,6 +15,10 @@ module.exports = (robot) ->
   get_userid = (res) ->
     return res.message.user.id
 
+  #info = request('GET',"https://slack.com/oauth/authorize?client_id=56799400722.70107065559&scope=incoming-webhook&scope=bot&scope=commands").getBody('utf8')
+  #console.log info
+  #console.log JSON.parse info
+
   configdir = "/home/t-jiyunz/teambot/Slack_TeamBot/" + process.env.CONFIG_DIR
 
   get_config_file = (userid) ->

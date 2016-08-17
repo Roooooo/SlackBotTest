@@ -5,6 +5,7 @@
   "author": "t-jiyunz@microsoft.com",
   "description": "Just for test",
   "dependencies": {
+    "download-file": "^0.1.5",
     "hubot": "^2.19.0",
     "hubot-diagnostics": "0.0.1",
     "hubot-google-images": "^0.2.6",

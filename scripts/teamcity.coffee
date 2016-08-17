@@ -5,11 +5,15 @@ CronJob = require('cron').CronJob
 request = require 'sync-request'
 fs = require 'fs'
 
+download = require 'download-file'
+
 AuthInfo = "user.txt"
 
 token = process.env.HUBOT_SLACK_TOKEN || ''
 SlackClient = require 'slack-api-client'
 slack = new SlackClient(token)
+SlackUpClient = require 'node-slack-upload'
+slackup = new SlackUpClient(token)
 
 module.exports = (robot) ->
 
@@ -406,10 +410,11 @@ module.exports = (robot) ->
   check_href_method = (res, href) ->
     channel = get_username(res)
     href = ServerURL + href
-    -> if check_href(channel, href) is true
+    serverURL = ServerURL
+    -> if check_href(channel, href, serverURL) is true
       this.stop()
       
-  check_href = (channel, href) ->
+  check_href = (channel, href, serverURL) ->
     console.log channel
     console.log href
     info = request('GET',href).getBody('utf8')
@@ -417,7 +422,7 @@ module.exports = (robot) ->
 
     statURL = info.match(/statistics\x20href="[^"]+"/)
     if statURL isnt null
-      statURL = ServerURL + statURL[0].split("\"")[1]
+      statURL = serverURL + statURL[0].split("\"")[1]
       stat = request('GET',statURL).getBody('utf8')
       buildTime = stat.match(/BuildDuration" value="[^"]+"/)
       if buildTime is null
@@ -432,14 +437,33 @@ module.exports = (robot) ->
           throw err if err
     if status is "finished"
       slack.api.chat.postMessage ({
-        channel:"#general",
-        text:"Your build has finished.",
+        channel:"#general"
+        text:"Your build has finished."
         as_user:true
       }), (err,ret) ->
         throw err if err
-        console.log ret
+        buildId = href.match(/id:([0-9]+)/)[1]
+        logurl = serverURL + "/httpAuth/downloadBuildLog.html?buildId=#{buildId}"
+        option =
+          directory:"./cache/"
+          filename:"Log_#{buildId}.txt"
+        download logurl, option, (e) ->
+          throw e if e
+          content = fs.readFileSync(option.directory+option.filename, 'utf8')
+          obj = {
+            content:content
+            filetype:'text'
+            title:option.filename
+            channels:'#general'
+          }
+          slackup.uploadFile obj, (er) ->
+            throw er if er
+            console.log 'done'
+          #info = request('GET',"https://slack.com/api/files.upload?token=#{token}&channel=%23general&file=%2E%2Fcache%2FLOG_#{buildId}%2Etxt&filename=LOG_#{buildId}%2Etxt&filetype=text").getBody('utf8')
+          #console.log JSON.parse info
       return true
     return false
 
   get_build_href = (data) ->
+    console.log data
     data.match(/href="[^"]+"/)[0].split("\"")[1]
