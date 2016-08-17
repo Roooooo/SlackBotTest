@@ -33,6 +33,7 @@ module.exports = (robot) ->
     return config.project.id
 
   APIv1 = "api-version=1.0"
+  APIv1p1 = "api-version=1.0-preview.1"
   APIv2 = "api-version=2.0"
   APIv2p1 = "api-version=2.0-preview.1"
   APIv3 = "api-version=3.0"
@@ -280,7 +281,7 @@ module.exports = (robot) ->
         res.send "Your old default repo : #{oldrepo.name}."
         res.send "Your new default repo : #{newrepo.name}."
           
-        fs.writeFileSync (get_config_file res),(JSON.stringify config)
+        fs.writeFileSync (get_config_file get_userid res),(JSON.stringify config)
         return
     
     res.send "#{res.match[1]} is not a correct repo name."
@@ -464,5 +465,33 @@ module.exports = (robot) ->
     console.log info
 # TODO : send feedback to slack
 
-  robot.respond /vso pull request( -s (.*) -t (.*))/, (res) ->
+  robot.respond /vso pull request( -s ([^-]+) -t ([^-\x20]+))( -d "[^\"]+")?/, (res) ->
+    token = get_token res
     console.log res.match
+    config = user_config res
+    repo = config.repo
+    return
+    if repo is undefined
+      res.send "Please set your repo first!"
+      return
+
+    repourl = insert_token_to_url token,repo.url
+    branurl = repourl + "/refs/heads?#{APIv1}"
+    repourl = repourl + "/pullRequests?#{APIv1p1}"
+
+    probj = {
+      sourceRefName:"refs/heads/" + res.match[2]
+      targetRefName:"refs/heads/" + res.match[3]
+      title:"Auto Generate PR"
+      description:"Generate by slack team bot."
+      reviewers:[]
+    }
+    info = request('GET',branurl).getBody('utf8')
+    console.log JSON.parse info
+    console.log probj
+    console.log repourl
+    info = request('POST',repourl,{
+      json:probj
+    }).getBody('utf8')
+    console.log JSON.parse info
+
