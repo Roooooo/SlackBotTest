@@ -470,7 +470,6 @@ module.exports = (robot) ->
     console.log res.match
     config = user_config res
     repo = config.repo
-    return
     if repo is undefined
       res.send "Please set your repo first!"
       return
@@ -486,6 +485,8 @@ module.exports = (robot) ->
       description:"Generate by slack team bot."
       reviewers:[]
     }
+    if res.match[4] isnt undefined
+      probj.description = res.match[4]
     info = request('GET',branurl).getBody('utf8')
     console.log JSON.parse info
     console.log probj
