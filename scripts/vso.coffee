@@ -382,7 +382,7 @@ module.exports = (robot) ->
 
     #console.log msg.attachments
     slack.api.chat.postMessage ({
-      channel:channel,
+      channel:"#general",
       text:"Here are #{cnt} #{states} bugs.",
       attachments:JSON.stringify attachments,
       as_user:true
@@ -467,9 +467,10 @@ module.exports = (robot) ->
       json:post
     }).getBody('utf8')
     console.log info
+
 # TODO : send feedback to slack
 
-  robot.respond /vso pull request( -s ([^-]+) -t ([^-\x20]+))( -d "[^\"]+")?/, (res) ->
+  robot.respond /vso pull request( -s ([^-]+) -t ([^-\x20]+))( -d "([^\"]+)")?/, (res) ->
     token = get_token res
     console.log res.match
     config = user_config res
@@ -490,7 +491,7 @@ module.exports = (robot) ->
       reviewers:[]
     }
     if res.match[4] isnt undefined
-      probj.description = res.match[4]
+      probj.description = res.match[5]
     info = request('GET',branurl).getBody('utf8')
     console.log JSON.parse info
     console.log probj
@@ -498,5 +499,11 @@ module.exports = (robot) ->
     info = request('POST',repourl,{
       json:probj
     }).getBody('utf8')
-    console.log JSON.parse info
 
+    info = JSON.parse info
+
+    if info.message isnt undefined
+      res.send "Error #{info.message}"
+    else
+      url = "https://mseng.visualstudio.com/#{config.project.name}/#{config.team.name}/_git/#{config.repo.name}/pullRequest/#{info.pullrequestID}"
+      res.send "Build succeed.\n#{url}"

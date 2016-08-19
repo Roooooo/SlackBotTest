@@ -404,7 +404,7 @@ module.exports = (robot) ->
     }).getBody('utf8')
 
     href = get_build_href(info)
-    new CronJob('0 */1 * * * *', check_href_method(res,href), null,true)
+    new CronJob('*/1 * * * * *', check_href_method(res,href), null,true)
     return
 
   check_href_method = (res, href) ->
