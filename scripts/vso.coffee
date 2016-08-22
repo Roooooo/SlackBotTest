@@ -310,6 +310,31 @@ module.exports = (robot) ->
 
     res.send msg
 
+  robot.respond /vso ls workitem$/, (res) ->
+    token = get_token res
+    pid = get_default_pid res
+
+    wiqlurl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/wit/wiql?#{APIv1}"
+    wiqlurl = insert_token_to_url token,wiqlurl
+
+    query = {
+      json:{"query":"SELECT [System.Id],[System.Title],[System.State]
+        FROM WorkItems
+        WHERE [System.WorkItemType] = 'TASK' AND [System.AssignedTo] = @Me AND [System.State] IN ('In progress','Proposed')"
+      }
+    }
+    
+    info = request('POST',wiqlurl,query).getBody('utf8')
+    info = JSON.parse info
+
+    for item in info.workItems
+      itemurl = item.url
+      itemurl = insert_token_to_url token,itemurl
+      
+      pip = JSON.parse request('GET',itemurl).getBody('utf8')
+      console.log pip.fields['System.Title']
+
+
   robot.respond /vso ls bug( -s .*)?$/, (res) ->
     token = get_token res
     pid = get_default_pid res
@@ -322,7 +347,6 @@ module.exports = (robot) ->
     states = ""
     if res.match[1] isnt undefined
       for state in res.match[1].split(' ')
-        console.log state
         if states isnt ""
           statemsg = statemsg + " "
           states = states + ","
@@ -501,9 +525,10 @@ module.exports = (robot) ->
     }).getBody('utf8')
 
     info = JSON.parse info
-
+    console.log info
     if info.message isnt undefined
       res.send "Error #{info.message}"
     else
-      url = "https://mseng.visualstudio.com/#{config.project.name}/#{config.team.name}/_git/#{config.repo.name}/pullRequest/#{info.pullrequestID}"
-      res.send "Build succeed.\n#{url}"
+      url = "https://mseng.visualstudio.com/#{config.project.name}/#{config.team.name}/_git/#{config.repo.name}/pullRequest/#{info.pullRequestId}"
+      url = url.replace(/\x20/g,"%20")
+      res.send "Succeed, click the following url to check your pull request.\n#{url}"
