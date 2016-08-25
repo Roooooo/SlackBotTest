@@ -112,11 +112,11 @@ module.exports = (robot) ->
     refresh_project_info insert_token_to_url token,ProjURL
     PID = ProjectID[ProjectName.indexOf 'VSOnline']
     
-    url2 = "https://:#{token}@mseng.visualstudio.com/DefaultCollection/_apis/projects/" + PID + "/teams?api-version=1.0&$top=1000"
+    url2 = "https://:#{token}@#{instance}/DefaultCollection/_apis/projects/" + PID + "/teams?api-version=1.0&$top=1000"
     refresh_team_info url2
     TID = TeamID[TeamName.indexOf 'App Experience']
 
-    url = "https://:#{token}@mseng.visualstudio.com/DefaultCollection/#{PID}/#{TID}/_apis/work/boards?#{APIv2p1}"
+    url = "https://:#{token}@#{instance}/DefaultCollection/#{PID}/#{TID}/_apis/work/boards?#{APIv2p1}"
     info = request('GET',url).getBody('utf8')
     info = JSON.parse(info)
     console.log info
@@ -136,7 +136,7 @@ module.exports = (robot) ->
     team_members = common.team_members
 
     pid = get_pid "common"
-    repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
+    repourl = "https://#{instance}/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
     repourl = insert_token_to_url token,repourl
     info = JSON.parse request('GET',repourl).getBody('utf8')
     console.log info.value[0]
@@ -167,7 +167,7 @@ module.exports = (robot) ->
     if pid is undefined
       res.send "Please set your project first!"
     else
-      repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
+      repourl = "https://#{instance}/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
       repourl = insert_token_to_url token, repourl
       info = request('GET',repourl).getBody('utf8')
       info = JSON.parse info
@@ -187,15 +187,15 @@ module.exports = (robot) ->
     refresh_project_info insert_token_to_url token,ProjURL
     PID = ProjectID[ProjectName.indexOf 'VSOnline']
     
-    url2 = "https://:#{token}@mseng.visualstudio.com/DefaultCollection/_apis/projects/" + PID + "/teams?api-version=1.0&$top=1000"
+    url2 = "https://:#{token}@#{instance}/DefaultCollection/_apis/projects/" + PID + "/teams?api-version=1.0&$top=1000"
     refresh_team_info url2
     TID = TeamID[TeamName.indexOf 'App Experience']
 
-    itemsurl = "https://:#{token}@mseng.visualstudio.com/DefaultCollection" + "/#{PID}/#{TID}" + "/_apis/Dashboard/Dashboards/?api-version=3.0-preview.2"
+    itemsurl = "https://:#{token}@#{instance}/DefaultCollection" + "/#{PID}/#{TID}" + "/_apis/Dashboard/Dashboards/?api-version=3.0-preview.2"
     refresh_dashboards_info itemsurl
     DID = DashboardsID[DashboardsName.indexOf 'Overview']
 
-    dashboardurl = "https://:#{token}@mseng.visualstudio.com/DefaultCollection" +"/#{PID}/#{TID}" + "/_apis/Dashboard/Dashboards/#{DID}?api-version=3.0-preview.2"
+    dashboardurl = "https://:#{token}@#{instance}/DefaultCollection" +"/#{PID}/#{TID}" + "/_apis/Dashboard/Dashboards/#{DID}?api-version=3.0-preview.2"
     info = request('GET',dashboardurl).getBody('utf8')
     info = JSON.parse(info)
 
@@ -276,7 +276,7 @@ module.exports = (robot) ->
     }
 
     pid = get_pid res
-    repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
+    repourl = "https://#{instance}/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
     repourl = insert_token_to_url token, repourl
 
     info = JSON.parse request('GET',repourl).getBody('utf8')
@@ -305,7 +305,7 @@ module.exports = (robot) ->
       res.send "Please set your default project first."
       return
 
-    repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
+    repourl = "https://#{instance}/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
     repourl = insert_token_to_url token, repourl
 
     info = JSON.parse request('GET',repourl).getBody('utf8')
@@ -320,7 +320,7 @@ module.exports = (robot) ->
     token = get_token res
     pid = get_pid res
 
-    wiqlurl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/wit/wiql?#{APIv1}"
+    wiqlurl = "https://#{instance}/DefaultCollection/#{pid}/_apis/wit/wiql?#{APIv1}"
     wiqlurl = insert_token_to_url token,wiqlurl
 
     query = {
@@ -375,7 +375,7 @@ module.exports = (robot) ->
     token = get_token res
     pid = get_pid res
 
-    wiqlurl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/wit/wiql?#{APIv1}"
+    wiqlurl = "https://#{instance}/DefaultCollection/#{pid}/_apis/wit/wiql?#{APIv1}"
     wiqlurl = insert_token_to_url token,wiqlurl
     
     statemsg = ""
@@ -468,7 +468,7 @@ module.exports = (robot) ->
     token = get_token res
     pid = get_pid res
 
-    bugurl = "https://mseng.visualstudio.com/DefaultCollection/_apis/wit/workitems/#{bugid}?#{APIv1}"
+    bugurl = "https://#{instance}/DefaultCollection/_apis/wit/workitems/#{bugid}?#{APIv1}"
     bugurl = insert_token_to_url token, bugurl
     info = JSON.parse request('GET',bugurl).getBody('utf8')
 
@@ -495,7 +495,7 @@ module.exports = (robot) ->
       word = res.match[2].split(' ')[1]
       beginwith = "&name=#{word}*"
 
-    defurl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/build/definitions?#{APIv2}#{beginwith}"
+    defurl = "https://#{instance}/DefaultCollection/#{pid}/_apis/build/definitions?#{APIv2}#{beginwith}"
     defurl = insert_token_to_url token,defurl
 
     info = JSON.parse request('GET',defurl).getBody('utf8')
@@ -521,7 +521,7 @@ module.exports = (robot) ->
     if res.match[2] isnt undefined
       post.sourceBranch = res.match[2].split(' ')[2]
 
-    buildurl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/build/builds?#{APIv2}"
+    buildurl = "https://#{instance}/DefaultCollection/#{pid}/_apis/build/builds?#{APIv2}"
     buildurl = insert_token_to_url token,buildurl
 
     do_build_and_check res,buildurl,post
@@ -562,8 +562,12 @@ module.exports = (robot) ->
       
         buildid = log.url.match(/builds\/([0-9]+)\/logs/)[1]
         logid = log.url.match(/logs\/([0-9]+)/)[1]
-          
-        text = require('GET',tmpurl).getBodt('utf8')
+
+        option =
+          directory:"./cache/vso/"
+          filename:"Log_VSTS_#{buildid}_#{logid}.txt"
+         
+        text = request('GET',tmpurl).getBody('utf8')
         obj =
           content:text
           filetype:'text'
@@ -575,21 +579,18 @@ module.exports = (robot) ->
           console.log 'done'
 
 
-        option =
-          directory:"./cache/vso/"
-          filename:"Log_VSTS_#{buildid}_#{logid}.txt"
-        download tmpurl,option ,(e)->
-          throw e if e
-          content = fs.readFileSync(option.directory+option.filename, 'utf8')
-          obj =
-            content:content
-            filetype:'text'
-            title:option.filename
-            channels:'#general'
-
-          slackup.uploadFile obj, (er) ->
-            throw er if er
-            console.log 'done'
+#        download tmpurl,option ,(e)->
+#          throw e if e
+#          content = fs.readFileSync(option.directory+option.filename, 'utf8')
+#          obj =
+#            content:content
+#            filetype:'text'
+#            title:option.filename
+#            channels:'#general'
+#
+#          slackup.uploadFile obj, (er) ->
+#            throw er if er
+#            console.log 'done'
 
       return true
     return false
@@ -608,7 +609,6 @@ module.exports = (robot) ->
       return
 
     repourl = insert_token_to_url token,repo.url
-    branurl = repourl + "/refs/heads?#{APIv1}"
     repourl = repourl + "/pullRequests?#{APIv1p1}"
 
     probj = {
@@ -667,7 +667,6 @@ module.exports = (robot) ->
         fail = fail + " are not vaild alias, they will not be added to reviewers."
         res.send fail
 
-    info = request('GET',branurl).getBody('utf8')
     info = request('POST',repourl,{
       json:probj
     }).getBody('utf8')
@@ -676,7 +675,7 @@ module.exports = (robot) ->
     if info.message isnt undefined
       res.send "Error #{info.message}"
     else
-      url = "https://mseng.visualstudio.com/#{config.project.name}/#{config.team.name}/_git/#{config.repo.name}/pullRequest/#{info.pullRequestId}"
+      url = "https://#{instance}/#{config.project.name}/#{config.team.name}/_git/#{config.repo.name}/pullRequest/#{info.pullRequestId}"
       url = url.replace(/\x20/g,"%20")
       res.send "Succeed, click the following url to check your pull request.\n#{url}"
       
