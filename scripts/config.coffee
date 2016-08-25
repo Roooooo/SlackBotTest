@@ -37,9 +37,6 @@ module.exports = (robot) ->
     presence:1
   }), (err,ret) ->
     throw err if err
-    #commonconfig = {
-    #  token:'kstv4d3hdbj525sr3dvzagims7o7fvyvk3pyyedmqghif7a2xvpq'
-    #}
     exist = fs.existsSync get_config_file "common"
     if exist is false
       common_data = {
@@ -57,6 +54,7 @@ module.exports = (robot) ->
           id:item.id
           name:item.name
           email:item.profile.email
+          alias:item.profile.email.split('@')[0]
         })
         exist = fs.existsSync file
         if exist is false

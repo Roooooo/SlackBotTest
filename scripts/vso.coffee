@@ -7,6 +7,10 @@ vso = require 'vso-client'
 CronJob = require('cron').CronJob
 SlackClient = require 'slack-api-client'
 slack = new SlackClient(process.env.HUBOT_SLACK_TOKEN)
+download = require 'download-file'
+
+SlackUpClient = require 'node-slack-upload'
+slackup = new SlackUpClient(process.env.HUBOT_SLACK_TOKEN)
 
 module.exports = (robot) ->
   get_username = (res) ->
@@ -14,10 +18,6 @@ module.exports = (robot) ->
 
   get_userid = (res) ->
     return res.message.user.id
-
-  #info = request('GET',"https://slack.com/oauth/authorize?client_id=56799400722.70107065559&scope=incoming-webhook&scope=bot&scope=commands").getBody('utf8')
-  #console.log info
-  #console.log JSON.parse info
 
   configdir = "/home/t-jiyunz/teambot/Slack_TeamBot/" + process.env.CONFIG_DIR
 
@@ -32,9 +32,13 @@ module.exports = (robot) ->
   get_token = (res) ->
     user_config(res)['token']
 
-  get_default_pid = (res) ->
+  get_pid = (res) ->
     config = user_config res
     return config.project.id
+
+  get_tid = (res) ->
+    config = user_config res
+    return config.team.id
 
   APIv1 = "api-version=1.0"
   APIv1p1 = "api-version=1.0-preview.1"
@@ -42,6 +46,8 @@ module.exports = (robot) ->
   APIv2p1 = "api-version=2.0-preview.1"
   APIv3 = "api-version=3.0"
   APIv3p2 = "api-version=3.0-preview.2"
+
+  instance = "mseng.visualstudio.com"
 
   DashboardsName = []
   DashboardsURL = []
@@ -96,7 +102,7 @@ module.exports = (robot) ->
       DashboardsURL.push obj['url']
       DashboardsID.push obj['id']
 
-  ProjURL = "https://mseng.visualstudio.com/DefaultCollection/_apis/projects?api-version=1.0"
+  ProjURL = "https://#{instance}/DefaultCollection/_apis/projects?api-version=1.0"
 
 # Get a board /Scenarios, stories and so on./ 
 
@@ -129,7 +135,7 @@ module.exports = (robot) ->
     common = user_config "common"
     team_members = common.team_members
 
-    pid = get_default_pid "common"
+    pid = get_pid "common"
     repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
     repourl = insert_token_to_url token,repourl
     info = JSON.parse request('GET',repourl).getBody('utf8')
@@ -157,7 +163,7 @@ module.exports = (robot) ->
   robot.respond /vso get request$/i, (res) ->
     token = get_token res
 
-    pid = get_default_pid res
+    pid = get_pid res
     if pid is undefined
       res.send "Please set your project first!"
     else
@@ -269,7 +275,7 @@ module.exports = (robot) ->
       name:res.match[1]
     }
 
-    pid = get_default_pid res
+    pid = get_pid res
     repourl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/git/repositories?#{APIv1}"
     repourl = insert_token_to_url token, repourl
 
@@ -294,7 +300,7 @@ module.exports = (robot) ->
     token = get_token res
     config = user_config res
 
-    pid = get_default_pid res
+    pid = get_pid res
     if pid is undefined
       res.send "Please set your default project first."
       return
@@ -312,7 +318,7 @@ module.exports = (robot) ->
 
   robot.respond /vso ls workitem$/, (res) ->
     token = get_token res
-    pid = get_default_pid res
+    pid = get_pid res
 
     wiqlurl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/wit/wiql?#{APIv1}"
     wiqlurl = insert_token_to_url token,wiqlurl
@@ -324,20 +330,50 @@ module.exports = (robot) ->
       }
     }
     
+    attachments = []
+
+    cnt = 0
+
     info = request('POST',wiqlurl,query).getBody('utf8')
     info = JSON.parse info
 
     for item in info.workItems
+      itemobj = {}
+      cnt = cnt + 1
+
       itemurl = item.url
       itemurl = insert_token_to_url token,itemurl
       
-      pip = JSON.parse request('GET',itemurl).getBody('utf8')
-      console.log pip.fields['System.Title']
+      iteminfo = JSON.parse request('GET',itemurl).getBody('utf8')
+      state = iteminfo.fields['System.State']
+      if state is "Proposed"
+        itemobj.color = 'danger'
+      else if state is "In Progress"
+        itemobj.color = 'warning'
+
+      itemobj.pretext = ""
+      itemobj.fields = []
+      
+      assigned = iteminfo.fields['System.AssignedTo'].split('<')[0]
+      itemobj.fields.push build_attach_obj "ID",iteminfo.id,true
+      itemobj.fields.push build_attach_obj "AssignedTo",assigned, true
+      itemobj.fields.push build_attach_obj "Name",iteminfo.fields['System.Title'],true
+      itemobj.fields.push build_attach_obj "Priority",iteminfo.fields['Microsoft.VSTS.Common.Priority'],true
+      
+      attachments.push itemobj
+
+    slack.api.chat.postMessage ({
+      channel:"#general",
+      text:"Here are #{cnt} tasks for you.",
+      attachments:JSON.stringify attachments,
+      as_user:true
+    }), (e,r) ->
+      throw e if e
 
 
   robot.respond /vso ls bug( -s .*)?$/, (res) ->
     token = get_token res
-    pid = get_default_pid res
+    pid = get_pid res
 
     wiqlurl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/wit/wiql?#{APIv1}"
     wiqlurl = insert_token_to_url token,wiqlurl
@@ -430,7 +466,7 @@ module.exports = (robot) ->
 
   set_bug_state = (bugid, newstate, res) ->
     token = get_token res
-    pid = get_default_pid res
+    pid = get_pid res
 
     bugurl = "https://mseng.visualstudio.com/DefaultCollection/_apis/wit/workitems/#{bugid}?#{APIv1}"
     bugurl = insert_token_to_url token, bugurl
@@ -452,7 +488,7 @@ module.exports = (robot) ->
 
   robot.respond /vso ls build (definition|def)(.*)$/,(res) ->
     token = get_token res
-    pid = get_default_pid res
+    pid = get_pid res
 
     beginwith = ""
     if res.match[2] isnt ''
@@ -474,8 +510,9 @@ module.exports = (robot) ->
 
   robot.respond /vso queue build ([0-9]+)( -b .*)?/, (res) ->
     token = get_token res
-    pid = get_default_pid res
+    pid = get_pid res
     
+    console.log res.match
     post = {
       definition:{
         id:res.match[1]
@@ -487,18 +524,85 @@ module.exports = (robot) ->
     buildurl = "https://mseng.visualstudio.com/DefaultCollection/#{pid}/_apis/build/builds?#{APIv2}"
     buildurl = insert_token_to_url token,buildurl
 
-    info = JSON.parse request('POST',buildurl,{
+    do_build_and_check res,buildurl,post
+  
+  do_build_and_check = (res,url,post) ->
+    token = get_token res
+    pid = get_pid res
+    id = post.definition.id
+    info = request('POST',url,{
       json:post
     }).getBody('utf8')
-    console.log info
 
+    info = JSON.parse info
+
+    href = info._links.self.href + "?" + APIv2
+    href = insert_token_to_url token, href
+    new CronJob('0 */1 * * * *',check_build_method(res,href),null,true)
+
+  check_build_method = (res, href) ->
+    channel = get_username res
+    url = href
+    -> if check_build(res,url) is true
+      this.stop()
+
+  check_build = (res,url) ->
+    token = get_token res
+    info = JSON.parse request('GET',url).getBody('utf8')
+    console.log info.status
+    if info.status is "completed"
+      console.log "yes"
+      logurl = info.logs.url + "?" + APIv2
+      logurl = insert_token_to_url token, logurl
+      loginfo = JSON.parse request('GET',logurl).getBody('utf8')
+      console.log loginfo
+      for log in loginfo.value
+        tmpurl = log.url + "?#{APIv2}"
+        tmpurl = insert_token_to_url token,tmpurl
+      
+        buildid = log.url.match(/builds\/([0-9]+)\/logs/)[1]
+        logid = log.url.match(/logs\/([0-9]+)/)[1]
+          
+        text = require('GET',tmpurl).getBodt('utf8')
+        obj =
+          content:text
+          filetype:'text'
+          title:option.filename
+          channels:'#general'
+
+        slackup.uploadFile obj, (er) ->
+          throw er if er
+          console.log 'done'
+
+
+        option =
+          directory:"./cache/vso/"
+          filename:"Log_VSTS_#{buildid}_#{logid}.txt"
+        download tmpurl,option ,(e)->
+          throw e if e
+          content = fs.readFileSync(option.directory+option.filename, 'utf8')
+          obj =
+            content:content
+            filetype:'text'
+            title:option.filename
+            channels:'#general'
+
+          slackup.uploadFile obj, (er) ->
+            throw er if er
+            console.log 'done'
+
+      return true
+    return false
 # TODO : send feedback to slack
 
-  robot.respond /vso pull request( -s ([^-]+) -t ([^-\x20]+))( -d "([^\"]+)")?/, (res) ->
+  robot.respond /vso pull request( -s ([^-]+) -t ([^-\x20]+))( -title "([^\"]+)")?( -d "([^\"]+)")?( -r(( [a-zA-Z\-]+)+))?/, (res) ->
     token = get_token res
-    console.log res.match
+    pid = get_pid res
+    tid = get_tid res
     config = user_config res
     repo = config.repo
+
+    console.log res.match
     if repo is undefined
       res.send "Please set your repo first!"
       return
@@ -512,23 +616,79 @@ module.exports = (robot) ->
       targetRefName:"refs/heads/" + res.match[3]
       title:"Auto Generate PR"
       description:"Generate by slack team bot."
-      reviewers:[]
+      reviewers:[
+        {
+          id:tid
+        }
+      ]
     }
+
+#   Set PR details
     if res.match[4] isnt undefined
-      probj.description = res.match[5]
+      probj.title = res.match[5]
+    if res.match[6] isnt undefined
+      probj.description = res.match[7]
+    if res.match[8] isnt undefined
+      teamurl = "https://#{instance}/DefaultCollection/_apis/projects/#{pid}/teams/#{tid}/members?#{APIv1}"
+      teamurl = insert_token_to_url token,teamurl
+      info = JSON.parse request('GET',teamurl).getBody('utf8')
+
+      fail = ""
+
+      teamconfig = user_config "common"
+      teamId = []
+      teamEmail = []
+      teamAlias = []
+      for item in teamconfig.team_members
+        teamAlias.push item.alias
+      
+      for item in info.value
+        teamId.push item.id
+        teamEmail.push item.uniqueName
+      for alias in res.match[9].split(' ')
+
+        if alias is ''
+          continue
+        email = alias + "@microsoft.com"
+        index = teamEmail.indexOf(email)
+
+        if index is -1
+          if fail is ""
+            fail = fail + alias
+          else
+            fail = fail + "," + alias
+        else
+          probj.reviewers.push {
+            id:teamId[index]
+          }
+        
+        
+      if fail isnt ""
+        fail = fail + " are not vaild alias, they will not be added to reviewers."
+        res.send fail
+
     info = request('GET',branurl).getBody('utf8')
-    console.log JSON.parse info
-    console.log probj
-    console.log repourl
     info = request('POST',repourl,{
       json:probj
     }).getBody('utf8')
 
     info = JSON.parse info
-    console.log info
     if info.message isnt undefined
       res.send "Error #{info.message}"
     else
       url = "https://mseng.visualstudio.com/#{config.project.name}/#{config.team.name}/_git/#{config.repo.name}/pullRequest/#{info.pullRequestId}"
       url = url.replace(/\x20/g,"%20")
       res.send "Succeed, click the following url to check your pull request.\n#{url}"
+      
+      if res.match[8] isnt undefined
+        for alias in res.match[9].split(' ')
+          index = teamAlias.indexOf(alias)
+          if index isnt -1
+            slack.api.chat.postMessage ({
+              channel:"@#{teamconfig.team_members[index].name}"
+              text:"#{res.message.user.name} has sent a pull request and invited you as reviewer."
+              as_user:true
+            }), (err) ->
+              throw err if err
+
+
