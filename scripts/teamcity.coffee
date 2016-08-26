@@ -72,8 +72,6 @@ module.exports = (robot) ->
   
   ServerURL = "http://#{username}:#{password}@#{domain}"
   authurl = "http://#{username}:#{password}@#{domain}/httpAuth"
-  #projurl = "#{authurl}/app/rest/projects/#{projname}"
-  #buildconfurl = "#{authurl}/app/rest/buildTypes/#{buildname}"
   BuildConfListURL = "#{authurl}/app/rest/buildTypes"
   BuildRun = "#{authurl}/app/rest/builds?locator=buildType:"
   BuildQueueLocator = "#{authurl}/app/rest/buildQueue?locator=buildType:"
@@ -84,8 +82,6 @@ module.exports = (robot) ->
     console.log domain
     ServerURL = "http://#{username}:#{password}@#{domain}"
     authurl = "http://#{username}:#{password}@#{domain}/httpAuth"
-    #projurl = "#{authurl}/app/rest/projects/#{projname}"
-    #buildconfurl = "#{authurl}/app/rest/buildTypes/#{buildname}"
     BuildConfListURL = "#{authurl}/app/rest/buildTypes"
     BuildRun = "#{authurl}/app/rest/builds?locator=buildType:"
     BuildQueueLocator = "#{authurl}/app/rest/buildQueue?locator=buildType:"
@@ -95,14 +91,24 @@ module.exports = (robot) ->
   domain_field = 3
   op_field = domain_field + 1
 
-  general_build_xml = (id) ->
-    "<build><buildType id=\"" + id + "\"\/><\/build>"
-  # Parse the xml and display build configurations info
+  generate_build_xml = (id, paramlist) ->
+    xml = "<buildType id=\"" + id + "\"\/>"
+
+
+    if paramlist isnt []
+      xml = xml + "<properties>"
+      for param in paramlist
+        xml = xml + "<property name=\"#{param.key}\" value=\"#{param.value}\"\/>"
+      xml = xml + "<\/properties>"
+
+    "<build>" + xml + "<\/build>"
+
+# Parse the xml and display build configurations info
 # To see the description and projectId , use ls -a
 
   get_build_list = (xml, res, dispAll) ->
     BuildNumber = xml.match(/<buildTypes\x20count="(\d+)[^>]+>/g)[0].match(/\d+/g)[0]
-    #res.send "There are #{BuildNumber} build configurations."
+    res.send "There are #{BuildNumber} build configurations."
 
     Info = ""
 
@@ -146,21 +152,21 @@ module.exports = (robot) ->
         }
         if tmp is null
           Info = Info + "#{dim} : Undefined\t"
-          buildobj.fields[i].value = "Undefined."
+      #    buildobj.fields[i].value = "Undefined."
         else
           Info = Info + "#{dim} : #{tmp[1]}\t"
-          buildobj.fields[i].value = tmp[1]
+      #    buildobj.fields[i].value = tmp[1]
       Info = Info + "\n"
-      attachments.push buildobj
-    #res.send Info
+      #attachments.push buildobj
+    res.send Info
     #console.log attachments
-    slack.api.chat.postMessage ({
-      channel:get_username res,
-      text:" ",
-      attachments:JSON.stringify attachments,
-      as_user:true
-    }), (e,r) ->
-      throw e if e
+    #slack.api.chat.postMessage ({
+    #  channel:get_username res,
+    #  text:"Text",
+    #  attachments:JSON.stringify attachments,
+    #  as_user:true
+    #}), (e,r) ->
+    #  throw e if e
 
 # Test if its a valid domain
   test_domain = (inp) ->
@@ -218,9 +224,6 @@ module.exports = (robot) ->
             break
     refreshflag = true
 
-#  robot.respond /refresh$/, (res) ->
-#    refreshList()
-
 # Get a list of build configuration
   robot.respond /teamcity ls(\s(\?|(-[\w\d?]+)))*$/, (res) ->
     dispAll = false
@@ -244,61 +247,114 @@ module.exports = (robot) ->
       domain = item
       refreshURL()
       info = request('GET',BuildConfListURL).getBody('utf8')
+      console.log info
       get_build_list(info,res,dispAll)
-
 
 # Check a build configuration's info by its id
 
-  robot.respond /teamcity build\x20info\x20([a-zA-Z\d.-_]+)$/, (res) ->
+  robot.respond /teamcity\s+ls\s+build\s+info\s+([0-9a-zA-Z\d.-_]+)$/, (res) ->
+    if refreshflag is false
+      refreshList()
+
+    buildid = res.match[1]
+    newdomain = find_domain buildid
+    if newdomain is undefined
+      res.send "Unknown build id."
+      return
+    domain = newdomain
+    refreshURL()
+
     res.send "Checking build configuration " + res.match[1]
-    tmpURL = BuildConfListURL + "/" + res.match[1]
-    res.send get_build_list(request('GET',tmpURL).getBody('utf8'),res,true)
+    tmpURL = BuildConfListURL + "/id:" + res.match[1] + "/parameters"
+    info = request('GET',tmpURL).getBody('utf8')
+    params = info.match(/<property([^>]+)\/>/g)
+    selections = info.match(/<property([^>]+)><type([^>]+)><\/property>/g)
+    attachments =[]
+    for param in params
+      paramobj =
+        fields:[]
+        pretext:""
+      name = param.match(/name=\"([\w\d\._-]+)\"/)
+      defaultvalue = param.match(/value=\"([^\"]*)\"/)
+      if name is undefined or defaultvalue is undefined
+        continue
+      if defaultvalue[1] is ""
+        defaultvalue[1] = "undefined"
+      paramobj.fields.push build_attach_obj "Property",name[1],true
+      paramobj.fields.push build_attach_obj "Default value",defaultvalue[1], true
 
-# Build a configuration spcified by its id
+      attachments.push paramobj
 
-  robot.respond /build\x20asdasd([a-zA-Z\d.-_\/]+)$/, (res) ->
-    res.send "Building " + res.match[1]
-    console.log res.match[1]
-    if /\//.test(res.match[1]) is true
-      olddomain = domain
-      tmpdomain = res.match[1].match(/^([^\/]+)\//)
-      console.log tmpdomain
-      if tmpdomain isnt null and test_domain(tmpdomain[1])
-        domain = tmpdomain[1]
-        refreshURL()
-        id = res.match[1].match(/\/(.*)$/)
-        if id is null or id[1] not in get_current_buildid()
-          res.send "Incorrect build id."
-          return
-        robot.http("#{Add2Que}#{id[1]}").get() (err,r,info) ->
-          if err isnt null
-            get_error_msg err,r,res
-          else
-            res.send "Build success."
-        domain = olddomain
-        refreshURL()
+    for param in selections
+      paramobj =
+        pretext:""
+        fields:[]
+      
+      name = param.match(/name=\"([\w\d\.-_]+)\"/)
+      defaultvalue = param.match(/value=\"([^\"]*)\"/)
+      value = param.match(/rawValue=\"([\w\d\.-_=\'\s]+)\"/)
+      if name is undefined or value is undefined or defaultvalue is undefined
+        continue
+      if defaultvalue[1] is ""
+        defaultvalue[1] = "undefined"
+      value = value[1].match(/data_\d+=\'([^\']+)\'/g)
+      msg = ""
+      for item in value
+        param = item.match(/\'(.*)\'/)
+        if msg isnt ""
+          msg = msg + ","
+        msg = msg + param[1]
 
-      else
-        res.send "Incorrect domain. Try again please."
+      paramobj.fields.push build_attach_obj "Property",name[1],true
+      paramobj.fields.push build_attach_obj "Default value",defaultvalue[1],true
+      paramobj.fields.push build_attach_obj "Options",msg,false
+      attachments.push paramobj
 
-      return
+    channel = get_channel res
+    slack.api.chat.postMessage ({
+      channel:channel
+      text:"123123"
+      attachments:JSON.stringify attachments
+      as_user:true
+    }), (e,r) ->
+      throw e if e
+    
+    res.send info
 
-    if res.match[1] not in get_current_buildid()
-      res.send "Incorrect build id."
-      return
-    robot.http("#{Add2Que}#{res.match[1]}").get() (err,r,info) ->
-      if err isnt null
-        get_error_msg err,r,res
-      else
-        res.send "Build success."
+  find_domain = (buildid) ->
+    if refreshflag is false
+      refreshList()
 
+    for i in [0...ProjectList.length]
+      for j in [0...BuildInfo[i].length]
+        if BuildInfo[i][j][0] is buildid
+          return BuildInfo[i][j][domain_field]
+    return undefined
+
+  build_attach_obj = (title, value, short) ->
+    {
+      title:title
+      value:value
+      short:short
+    }
 # Build / Deploy a project
-# TEST
 
-  robot.respond /teamcity (build|deploy)\s([^-]+)( -p (.*))?$/, (res) ->
+  robot.respond /teamcity\s+(build|deploy)\s+([^-]+)(\s+-p((\s+([0-9a-zA-Z\._-]+)=([0-9a-zA-Z\._-]+))+))?$/, (res) ->
     console.log res.match
     if refreshflag is false
       refreshList()
+
+    params = res.match[4].split(/\s+/)
+    console.log params
+    paramlist = []
+    for param in params
+      if param isnt ''
+        param = param.split('=')
+        paramlist.push {
+          key:param[0]
+          value:param[1]
+        }
+
     op = res.match[0].split(" ")[2]
     slices = res.match[2].split("\"")
     if slices.length is 1
@@ -327,7 +383,7 @@ module.exports = (robot) ->
         domain = BuildInfo[proj][pos][domain_field]
         refreshURL()
         
-        do_build_and_check(res,id)
+        do_build_and_check(res,id,paramlist)
         res.send op + "ing..."
         return
       else if slices.length is 2
@@ -343,7 +399,7 @@ module.exports = (robot) ->
           if row[1] is branchname and row[op_field] is op
             domain = row[domain_field]
             refreshURL()
-            do_build_and_check(res,row[0])
+            do_build_and_check(res,row[0],paramlist)
             res.send op + "ing..."
             return
 
@@ -365,7 +421,7 @@ module.exports = (robot) ->
         if row[1] is branchname and row[op_field] is op
           domain = row[domain_field]
           refreshURL()
-          do_build_and_check(res,row[0])
+          do_build_and_check(res,row[0],paramlist)
           res.send op + "ing..."
           return
 
@@ -386,7 +442,7 @@ module.exports = (robot) ->
         if row[1] is branchname and row[op_field] is op
           domain = row[domain_field]
           refreshURL()
-          do_build_and_check(res,row[0])
+          do_build_and_check(res,row[0],paramlist)
           res.send op + "ing..."
           return
 
@@ -396,15 +452,17 @@ module.exports = (robot) ->
     else
       res.send "Incorrect command."
 
-  do_build_and_check = (res, id) ->
-    data = general_build_xml(id)
+  do_build_and_check = (res, id, paramlist) ->
+    data = generate_build_xml id, paramlist
+    console.log data
     info = request('POST', BuildQueue, {
       'headers': {'Content-type':'application/xml'}
       body: data
     }).getBody('utf8')
-
-    href = get_build_href(info)
-    new CronJob('* */5 * * * *', check_href_method(res,href), null,true)
+    href = get_build_href info
+    num = href.split("id:")[1]
+    ls_build_param res, num
+    new CronJob('0 */1 * * * *', check_href_method(res,href), null,true)
     return
 
   check_href_method = (res, href) ->
@@ -453,17 +511,21 @@ module.exports = (robot) ->
           obj = {
             content:content
             filetype:'text'
-            title:option.filename
+            #  title:option.filename
             channels:'#general'
           }
           slackup.uploadFile obj, (er) ->
             throw er if er
             console.log 'done'
-          #info = request('GET',"https://slack.com/api/files.upload?token=#{token}&channel=%23general&file=%2E%2Fcache%2FLOG_#{buildId}%2Etxt&filename=LOG_#{buildId}%2Etxt&filetype=text").getBody('utf8')
-          #console.log JSON.parse info
       return true
     return false
 
   get_build_href = (data) ->
     console.log data
     data.match(/href="[^"]+"/)[0].split("\"")[1]
+
+  ls_build_param = (res,id) ->
+    parameterURL = ServerURL + "/httpAuth/app/rest/builds/id:#{id}/resulting-properties"
+    console.log parameterURL
+    info = request('GET',parameterURL).getBody('utf8')
+    console.log info

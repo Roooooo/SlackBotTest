@@ -578,23 +578,8 @@ module.exports = (robot) ->
           throw er if er
           console.log 'done'
 
-
-#        download tmpurl,option ,(e)->
-#          throw e if e
-#          content = fs.readFileSync(option.directory+option.filename, 'utf8')
-#          obj =
-#            content:content
-#            filetype:'text'
-#            title:option.filename
-#            channels:'#general'
-#
-#          slackup.uploadFile obj, (er) ->
-#            throw er if er
-#            console.log 'done'
-
       return true
     return false
-# TODO : send feedback to slack
 
   robot.respond /vso pull request( -s ([^-]+) -t ([^-\x20]+))( -title "([^\"]+)")?( -d "([^\"]+)")?( -r(( [a-zA-Z\-]+)+))?/, (res) ->
     token = get_token res
