@@ -201,7 +201,7 @@ module.exports = (robot) ->
 
 # Set VSO default project
 
-  robot.respond /vso set default project (.*)/, (res) ->
+  robot.respond /vso set project (.*)/, (res) ->
     token = get_token res
     config = user_config res
 
@@ -223,14 +223,14 @@ module.exports = (robot) ->
       res.send "Error : Unknown Project Name."
       newProject = oldProject
     
-    res.send "Your old default project : #{oldProject} ."
-    res.send "Your new default project : #{newProject} ."
+    res.send "Your old project : #{oldProject} ."
+    res.send "Your new project : #{newProject} ."
 
     fs.writeFileSync (get_config_file get_userid res), JSON.stringify config
 
 # Set VSO default team
 
-  robot.respond /vso set default team (.*)/, (res) ->
+  robot.respond /vso set team (.*)/, (res) ->
     token = get_token res
     config = user_config res
 
@@ -256,12 +256,12 @@ module.exports = (robot) ->
       res.send "Error : Unknown Team Name."
       newTeam = oldTeam
 
-    res.send "Your old default team : #{oldTeam} ."
-    res.send "Yout new default team : #{newTeam} ."
+    res.send "Your old team : #{oldTeam} ."
+    res.send "Yout new team : #{newTeam} ."
 
     fs.writeFileSync (get_config_file get_userid res), JSON.stringify config
 
-  robot.respond /vso set default repo (.*)/, (res) ->
+  robot.respond /vso set repo (.*)/, (res) ->
    
     token = get_token res
     config = user_config res
@@ -288,8 +288,8 @@ module.exports = (robot) ->
         newrepo.url = repo.url
         config.repo = newrepo
 
-        res.send "Your old default repo : #{oldrepo.name}."
-        res.send "Your new default repo : #{newrepo.name}."
+        res.send "Your old repo : #{oldrepo.name}."
+        res.send "Your new repo : #{newrepo.name}."
           
         fs.writeFileSync (get_config_file get_userid res),(JSON.stringify config)
         return
@@ -486,16 +486,16 @@ module.exports = (robot) ->
     console.log JSON.parse info
     res.send "Bug #{bugid} has been set to #{newstate}."
 
-  robot.respond /vso ls build (definition|def)(.*)$/,(res) ->
+  robot.respond /vso\s+ls\s+build\s+(definition|def)(\s+-k\s+(.*))$/,(res) ->
     token = get_token res
     pid = get_pid res
 
-    beginwith = ""
+    console.log res.match
+    key = ""
     if res.match[2] isnt ''
-      word = res.match[2].split(' ')[1]
-      beginwith = "&name=#{word}*"
+      key = res.match[3]
 
-    defurl = "https://#{instance}/DefaultCollection/#{pid}/_apis/build/definitions?#{APIv2}#{beginwith}"
+    defurl = "https://#{instance}/DefaultCollection/#{pid}/_apis/build/definitions?#{APIv2}"
     defurl = insert_token_to_url token,defurl
 
     info = JSON.parse request('GET',defurl).getBody('utf8')
@@ -504,6 +504,9 @@ module.exports = (robot) ->
       author = def.authoredBy
       if author isnt undefined
         author = author.displayName
+      if key isnt ""
+        if not def.name.match(key)
+          continue
       msg = msg + "Build definition: #{def.name}, AuthoredBy: #{author}, id: #{def.id}\n"
 
     res.send msg

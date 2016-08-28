@@ -43,6 +43,9 @@ module.exports = (robot) ->
     "epxprofilebuild"
     "msdnbuild"
     "msdndeploy"
+    #"profileautomation"
+    #"galleriesautomation"
+    #"forumsautomation"
   ]
   ProjectList = [
     /profile/i
@@ -246,8 +249,8 @@ module.exports = (robot) ->
     for item in DomainList
       domain = item
       refreshURL()
+      console.log BuildConfListURL
       info = request('GET',BuildConfListURL).getBody('utf8')
-      console.log info
       get_build_list(info,res,dispAll)
 
 # Check a build configuration's info by its id
@@ -345,7 +348,6 @@ module.exports = (robot) ->
       refreshList()
 
     params = res.match[4].split(/\s+/)
-    console.log params
     paramlist = []
     for param in params
       if param isnt ''
@@ -454,7 +456,6 @@ module.exports = (robot) ->
 
   do_build_and_check = (res, id, paramlist) ->
     data = generate_build_xml id, paramlist
-    console.log data
     info = request('POST', BuildQueue, {
       'headers': {'Content-type':'application/xml'}
       body: data

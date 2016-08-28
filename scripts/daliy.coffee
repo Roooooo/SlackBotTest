@@ -42,3 +42,10 @@ module.exports = (robot) ->
   sleep = (ms) ->
     start = new Date().getTime()
     continue while new Date().getTime() - start < ms
+#C1NNWAB5J
+#  slack.api.channels.history ({
+#    channel:"C1NNWAB5J"
+##    oldest:1472203626.000155
+#  }), (err, r) ->
+#    throw err if err
+#    console.log r
