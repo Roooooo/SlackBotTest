@@ -486,14 +486,14 @@ module.exports = (robot) ->
     console.log JSON.parse info
     res.send "Bug #{bugid} has been set to #{newstate}."
 
-  robot.respond /vso\s+ls\s+build\s+(definition|def)(\s+-k\s+(.*))$/,(res) ->
+  robot.respond /vso\s+ls\s+build(\s+-k\s+(.*))$/,(res) ->
     token = get_token res
     pid = get_pid res
 
     console.log res.match
     key = ""
-    if res.match[2] isnt ''
-      key = res.match[3]
+    if res.match[1] isnt ''
+      key = res.match[2]
 
     defurl = "https://#{instance}/DefaultCollection/#{pid}/_apis/build/definitions?#{APIv2}"
     defurl = insert_token_to_url token,defurl
