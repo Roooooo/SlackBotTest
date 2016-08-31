@@ -43,9 +43,9 @@ module.exports = (robot) ->
     "epxprofilebuild"
     "msdnbuild"
     "msdndeploy"
-    #"profileautomation"
-    #"galleriesautomation"
-    #"forumsautomation"
+    "profileautomation"
+    "galleriesautomation"
+    "forumsautomation"
   ]
   ProjectList = [
     /profile/i

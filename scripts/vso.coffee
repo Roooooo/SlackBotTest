@@ -207,7 +207,7 @@ module.exports = (robot) ->
 
 # Set VSO default project
 
-  robot.respond /vso set project (.*)/, (res) ->
+  robot.respond /vso\s+set\s+project\s+(.*)/, (res) ->
     token = get_token "common"
     config = user_config res
 
@@ -236,7 +236,7 @@ module.exports = (robot) ->
 
 # Set VSO default team
 
-  robot.respond /vso set team (.*)/, (res) ->
+  robot.respond /vso\s+set\s+team (.*)/, (res) ->
     token = get_token res
     config = user_config res
 
@@ -269,7 +269,7 @@ module.exports = (robot) ->
 
     fs.writeFileSync (get_config_file get_userid res), JSON.stringify config
 
-  robot.respond /vso set repo (.*)/, (res) ->
+  robot.respond /vso\s+set\s+repo (.*)/, (res) ->
    
     token = get_token res
     config = user_config res
@@ -304,7 +304,7 @@ module.exports = (robot) ->
     
     res.send "#{res.match[1]} is not a correct repo name."
 
-  robot.respond /vso ls repo$/, (res) ->
+  robot.respond /vso\s+ls\s+repo$/, (res) ->
     token = get_token res
     config = user_config res
 
@@ -324,7 +324,7 @@ module.exports = (robot) ->
 
     res.send msg
 
-  robot.respond /vso ls workitem$/, (res) ->
+  robot.respond /vso\s+ls\s+workitem$/, (res) ->
     token = get_token res
     pid = get_pid res
 
@@ -379,7 +379,7 @@ module.exports = (robot) ->
       throw e if e
 
 
-  robot.respond /vso ls bug( -s .*)?$/, (res) ->
+  robot.respond /vso\s+ls\s+bug(\s+-s\s+.*)?$/, (res) ->
     token = get_token res
     pid = get_pid res
 

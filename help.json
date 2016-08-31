@@ -13,7 +13,7 @@
   },
   {
     "key":"teamcity build {build id} [-p {key1}={value1} {key2}={value2}...]",
-    "value":"`teamcity build {build id} [-p {key1}={value1} {key2}={value2}...]` : Queue a build configuration by it's build id. When the build is finished, bot will alert you with direct message and upload build log in #general.\n\t\t`buildid` : This parameter should be a valid id that you can get from `teamcity ls`. If you provide a invalid id, there will be a error message.\n\t\t`key` & `value` : key should be a property name and value is the value for the property. Do not set up the properties that you would like to left them as default."
+    "value":"`teamcity build {build id} [-p {key1}={value1} {key2}={value2}...]` : Queue a build configuration by it's build id. When the build is finished, bot will alert you with direct message and upload build log in #general.\n\t\t`buildid` : This parameter should be a valid id that you can get from `teamcity ls`. If you provide a invalid id, there will be a error message.\n\t\t`-p` : Any key-value pair after this parameter will be set as build parameters.\n\t\t`key` & `value` : key should be a property name and value is the value for the property. Do not set up the properties that you would like to left them as default."
   },
   {
     "key":"vso set project {project name}",
@@ -26,5 +26,37 @@
   {
     "key":"vso set repo {repo name}",
     "value":"`vso set repo {repo name}` : Set up your VSO working repository. Any command begin with vso will be operated under your working repository.\n\t\t`repo name` : The display name of your working repository. Case sensitive. E.g. \"MSDN.BuildNotification\"."
+  },
+  {
+    "key":"vso ls repo",
+    "value":"`vso ls repo` : Show all the repositories under your working project. You need to set up your working project before using this command."
+  },
+  {
+    "key":"vso ls workitem",
+    "value":"`vso ls workitem` : List all the tasks assigned to you which states are 'In progress' or 'Proposed'."
+  },
+  {
+    "key":"vso ls bug",
+    "value":"`vso ls bug [-s {states}]` : List all the bugs assigned to you.\n\t\t`-s` : Optioned. Use this parameter to filter out bugs with states you choose.\n\t\t`states` : One or more from {active, resolved, closed}, seperated with space."
+  },
+  {
+    "key":"vso resolve bug",
+    "value":"`vso resolve bug {bug id}` : Resolve bug by bug id.\n\t\t`bug id` : You can get bug id with `vso ls bug`."
+  },
+  {
+    "key":"vso close bug",
+    "value":"`vso close bug {bug id}` : Close bug by bug id.\n\t\t`bug id` : You can get bug id with `vso ls bug`."
+  },
+  {
+    "key":"vso ls build",
+    "value":"vso ls build [-k {keyword}] : List build definitions under your work project. You can get build author, build title and build id.\n\t\t`-k` : Optioned. Use this parameter to filter builds with `keyword` out."
+  },
+  {
+    "key":"vso queue build",
+    "value":"`vso queue build {build id} [-b {branch}] : Queue a build and get notified when build finished.\n\t\t`build id` : Check your build id with `vso ls build`.\n\t\t`-b` : Optioned. When use this parameter, build will run under branch specified by `branch`."
+  },
+  {
+    "key":"vso pull request",
+    "value":"`vso pull request -s {source branch} -t {target branch} [-title {PR title}] [-d {PR description}] [-r {alias1} {alias2}...] : Send an pull request under your working repo from `source branch` to `target branch`.\n\t\t`-s` : Required. Sourch branch for pull request.\n\t\t`-t` : Required. Target branch for pull reuqest.\n\t\t`-title` : Optioned. Title for pull request.\n\t\t`-d` : Optioned. Description for pull request.\n\t\t`-r` : Optioned. Set up reviewers for pull request. If ignored, will set team as reviewers automatically."
   }
 ]
