@@ -16,6 +16,12 @@ module.exports = (robot) ->
   get_username = (res) ->
     return "@#{res.message.user.name}"
 
+  get_channel = (response) ->
+    if response.message.room is response.message.user.name
+      "@#{response.message.room}"
+    else
+      "##{response.message.room}"
+
   get_userid = (res) ->
     return res.message.user.id
 
@@ -102,7 +108,7 @@ module.exports = (robot) ->
       DashboardsURL.push obj['url']
       DashboardsID.push obj['id']
 
-  ProjURL = "https://#{instance}/DefaultCollection/_apis/projects?api-version=1.0"
+  ProjURL = "https://#{instance}/DefaultCollection/_apis/projects?#{APIv1}"
 
 # Get a board /Scenarios, stories and so on./ 
 
@@ -202,13 +208,13 @@ module.exports = (robot) ->
 # Set VSO default project
 
   robot.respond /vso set project (.*)/, (res) ->
-    token = get_token res
+    token = get_token "common"
     config = user_config res
 
     oldProject = config.project.name
     newProject = res.match[1]
 
-    refresh_project_info insert_token_to_url token, ProjURL
+    refresh_project_info (insert_token_to_url token, ProjURL)
     
     newIndex = ProjectName.indexOf newProject
 
@@ -240,7 +246,9 @@ module.exports = (robot) ->
       return
     refresh_team_info insert_token_to_url token, config.project.url + "/teams?#{APIv1}&$top=1000"
 
-    oldTeam = config.team.name
+    oldTeam = config.team.project + "/" + config.team.name
+    if config.team.name is undefined
+      oldTeam = undefined
     newTeam = res.match[1]
 
     newIndex = TeamName.indexOf newTeam
@@ -486,7 +494,7 @@ module.exports = (robot) ->
     console.log JSON.parse info
     res.send "Bug #{bugid} has been set to #{newstate}."
 
-  robot.respond /vso\s+ls\s+build(\s+-k\s+(.*))$/,(res) ->
+  robot.respond /vso\s+ls\s+build(\s+-k\s+(.*))?$/,(res) ->
     token = get_token res
     pid = get_pid res
 

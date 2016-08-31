@@ -1,6 +1,8 @@
 # Description : For daily chat and test
 # @author     : t-jiyunz@microsoft.com
 
+fs = require 'fs'
+
 module.exports = (robot) ->
   get_username = (response) ->
     "@#{response.message.user.name}"
@@ -17,18 +19,22 @@ module.exports = (robot) ->
   robot.hear /bye/i, (res) ->
     res.send "Bye-bye!"
 
-  robot.hear /((help|pot|bot)\x20(help|bot|pot))/i, (res) ->
-    res.send "Hi i'm pot, welcome to chat room!"
-    res.send "You can call me by using one of formats below:"
-    res.send "    @pot: [command]"
-    res.send "    pot [command]"
-    res.send "    (Direct message to me)[command]"
-    res.send "===================================================="
-    res.send "So far i've supported serveral commands, including : \n"
-    res.send "ls [-a] : Show brief info of all build configurations on msdnbuild/msdndeploy/epxprofilebuild.(With -a you will get more details)"
-    res.send "build/deploy buildId : Run a build configuration specified by its build id. You can look up the buildIds through 'ls'."
-    res.send "build/deploy projectname branchname : Run a build configuration specified by project and branch. Here projectname shoule be in {wiki, galleries, profile, forums, forumsapi, widget, recognition}, and branchname is the name of the branch you want to build, such as \"main\" or \"Trunk\". You can also look up the branchname through 'ls'."
-    res.send "hi/hello : Get a warm greeting from @pot. (Temporarily test command for testing whether the bot is online or blocked also. -ping will be online as soon as possible.)"
+  help = (res, cmd) ->
+    if cmd is undefined
+      cmd = "common"
+    console.log cmd
+    msg = ""
+    file = "/home/t-jiyunz/teambot/Slack_TeamBot/help.json"
+    helpfile = JSON.parse fs.readFileSync(file,'utf8')
+    for item in helpfile
+      console.log item.key.match cmd
+      if item.key.match cmd
+        if msg isnt ""
+          msg = msg + "\n\n"
+        msg = msg + item.value
+
+    res.send msg
+    return
   
   SlackClient = require('slack-api-client')
   token = process.env.HUBOT_SLACK_TOKEN || ''
@@ -49,3 +55,11 @@ module.exports = (robot) ->
 #  }), (err, r) ->
 #    throw err if err
 #    console.log r
+  
+  robot.respond /(.*)/, (res) ->
+    console.log res.match
+    msg = res.match[1]
+    console.log msg.match(/^\?(.*)?$/)
+    if msg.match(/^\?(.*)?$/)
+      cmd = msg.match(/^\?(.*)?$/)[1]
+      help res,cmd

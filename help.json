@@ -1,0 +1,30 @@
+[
+  {
+    "key":"common",
+    "value":"Hi i'm pot. You can call me through following commands:\n\t\t`@pot: [command]`\n\t\t`pot [command]`\n\t\t(Direct message)`[command]`\nFor further help, try`?[command]` to get help with specific command."
+  }, 
+  {
+    "key":"teamcity ls",
+    "value":"`teamcity ls [-a]` : List all the build configuration on the TeamCity server. You will get ID, branch name and project name of a build configuration.\n\t\t`-a` : With this parameter, you will get build description and project id as well."
+  },
+  {
+    "key":"teamcity ls build info {build id}",
+    "value":"`teamcity ls build info {build id}` : List all the parameters of a teamcity build configuration.\n\t\t`buildid` : This parameter should be a valid buildid that you can get from `teamcity ls`. If you provide a invalid id, there will be a error message.\n\t\t*Output* : There will be serveral attachments as output of this command. Each attachments contains a parameter's name and it's default value. There will be a 'Options' part shows the value you may choose from."
+  },
+  {
+    "key":"teamcity build {build id} [-p {key1}={value1} {key2}={value2}...]",
+    "value":"`teamcity build {build id} [-p {key1}={value1} {key2}={value2}...]` : Queue a build configuration by it's build id. When the build is finished, bot will alert you with direct message and upload build log in #general.\n\t\t`buildid` : This parameter should be a valid id that you can get from `teamcity ls`. If you provide a invalid id, there will be a error message.\n\t\t`key` & `value` : key should be a property name and value is the value for the property. Do not set up the properties that you would like to left them as default."
+  },
+  {
+    "key":"vso set project {project name}",
+    "value":"`vso set project {project name}` : Set up your VSO working project. Any command begin with vso will be operated under the working project. Return an error if you provide a invalid name.\n\t\t`project name` : The display name of your working project. Case sensitive. E.g. \"VSChina\"."
+  },
+  {
+    "key":"vso set team {team name}",
+    "value":"`vso set project {team name}` : Set up your VSO working team. Any command begin with vso will be operated under your working project and working team.\n\t\t`team name` : The display name of your working project. Case sensitive. E.g. \"App Experience\"."
+  },
+  {
+    "key":"vso set repo {repo name}",
+    "value":"`vso set repo {repo name}` : Set up your VSO working repository. Any command begin with vso will be operated under your working repository.\n\t\t`repo name` : The display name of your working repository. Case sensitive. E.g. \"MSDN.BuildNotification\"."
+  }
+]
