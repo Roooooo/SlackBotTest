@@ -49,7 +49,7 @@
   },
   {
     "key":"vso ls build",
-    "value":"vso ls build [-k {keyword}] : List build definitions under your work project. You can get build author, build title and build id.\n\t\t`-k` : Optioned. Use this parameter to filter builds with `keyword` out."
+    "value":"`vso ls build [-k {keyword}]` : List build definitions under your work project. You can get build author, build title and build id.\n\t\t`-k` : Optioned. Use this parameter to filter builds with `keyword` out."
   },
   {
     "key":"vso queue build",

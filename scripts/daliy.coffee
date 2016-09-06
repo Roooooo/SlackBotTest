@@ -27,7 +27,6 @@ module.exports = (robot) ->
     file = "/home/t-jiyunz/teambot/Slack_TeamBot/help.json"
     helpfile = JSON.parse fs.readFileSync(file,'utf8')
     for item in helpfile
-      console.log item.key.match cmd
       if item.key.match cmd
         if msg isnt ""
           msg = msg + "\n\n"
@@ -57,9 +56,7 @@ module.exports = (robot) ->
 #    console.log r
   
   robot.respond /(.*)/, (res) ->
-    console.log res.match
     msg = res.match[1]
-    console.log msg.match(/^\?(.*)?$/)
     if msg.match(/^\?(.*)?$/)
       cmd = msg.match(/^\?(.*)?$/)[1]
       help res,cmd

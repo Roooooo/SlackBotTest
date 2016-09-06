@@ -171,22 +171,6 @@ module.exports = (robot) ->
     #}), (e,r) ->
     #  throw e if e
 
-# Test if its a valid domain
-  test_domain = (inp) ->
-    olddomain = domain
-    domain = inp
-    refreshURL()
-    flag = false
-    robot.http(BuildConfListURL).get() (err,r,info) ->
-      console.log err
-      console.log /<\/buildTypes>/.test(info)
-      if err is null and /<\/buildTypes>/.test(info)
-        flag = true
-      domain = olddomain
-      refreshURL()
-      console.log "test" + flag
-      return flag
-
 # Get a list of build-ids on current domain
   get_current_buildid = () ->
     cur_buildid = []
@@ -227,7 +211,93 @@ module.exports = (robot) ->
             break
     refreshflag = true
 
-# Get a list of build configuration
+  msg_queue = []
+  msg_oldest = 0
+
+  msg_track_method = (channel_list,im_list) ->
+    console.log "test"
+    console.log channel_list
+    console.log im_list
+    -> msg_loop(channel_list,im_list)
+
+  msg_loop = (channel_list,im_list) ->
+    msg_collect(channel_list,im_list)
+    msg_process()
+
+  msg_collect = (channel_list,im_list) ->
+    console.log "collecting"
+    tmp_oldest = msg_oldest
+    for channel in channel_list
+      param =
+        channel:channel.id
+        oldest:tmp_oldest
+        count:1000
+      slack.api.channels.history (param), (err, ret) ->
+        if ret.messages isnt undefined and ret.messages.length isnt 0
+          msg_oldest = Math.max(ret.messages[0].ts,msg_oldest)
+          for msg in ret.messages
+            if msg.type is "message"
+              msg_queue.push msg
+
+    for channel in im_list
+      param =
+        channel:channel.id
+        oldest:tmp_oldest
+        count:1000
+      slack.api.im.history (param), (err,ret) ->
+        if ret.messages isnt undefined and ret.messages.length isnt 0
+          msg_oldest = Math.max(ret.messages[0].ts,msg_oldest)
+          for msg in ret.messages
+            if msg.type is "message"
+              msg.channel = param.channel
+              msg_queue.push msg
+  
+  msg_process = () ->
+    console.log "processing"
+    while msg_queue.length isnt 0
+      msg = msg_queue.shift()
+      console.log msg
+      if msg.text.match(/teamcity\s+(build|deploy)\s+([^-]+)(\s+-p((\s+([0-9a-zA-Z\._-]+)=([0-9a-zA-Z\._-]+))+))?$/)
+        
+        param = msg.text.match(/teamcity\s+(build|deploy)\s+([^-]+)(\s+-p((\s+([0-9a-zA-Z\._-]+)=([0-9a-zA-Z\._-]+))+))?$/)
+        queue_build(param,msg.channel,msg.user)
+
+  slack.api.channels.list ({}), (err, ret) ->
+    throw err if err
+    channel_list = []
+    general_id = undefined
+    for channel in ret.channels
+      channel_list.push {
+        id:channel.id
+        name:channel.name
+      }
+      if channel.name is "general"
+        general_id = channel.id
+    slack.api.im.list (e,r) ->
+      throw e if e
+      im_list = []
+      for im in r.ims
+        im_list.push {
+          id:im.id
+          name:im.user
+        }
+      slack.api.chat.postMessage ({
+        channel:"#general"
+        text:"Bot is working now."
+        as_user:true
+      }), (err1, ret1) ->
+        throw err1 if err1
+        slack.api.channels.history ({
+          channel:general_id
+        }), (err2,ret2) ->
+          throw err2 if err2
+          for msg in ret2.messages
+            if msg.text = "Bot is working now."
+              msg_oldest = msg.ts
+              break
+          msg_tracking = new CronJob('*/30 * * * * *', msg_track_method(channel_list,im_list),null, true)
+
+  #Get a list of build configuration
   robot.respond /teamcity ls(\s(\?|(-[\w\d?]+)))*$/, (res) ->
     dispAll = false
   
@@ -342,23 +412,25 @@ module.exports = (robot) ->
     }
 # Build / Deploy a project
 
-  robot.respond /teamcity\s+(build|deploy)\s+([^-]+)(\s+-p((\s+([0-9a-zA-Z\._-]+)=([0-9a-zA-Z\._-]+))+))?$/, (res) ->
-    console.log res.match
+#robot.respond /teamcity\s+(build|deploy)\s+([^-]+)(\s+-p((\s+([0-9a-zA-Z\._-]+)=([0-9a-zA-Z\._-]+))+))?$/, (res) ->
+  queue_build = (cmd,channel,user) ->
+    console.log cmd
     if refreshflag is false
       refreshList()
 
-    params = res.match[4].split(/\s+/)
     paramlist = []
-    for param in params
-      if param isnt ''
-        param = param.split('=')
-        paramlist.push {
-          key:param[0]
-          value:param[1]
-        }
+    params = cmd[4].split(/\s+/) if cmd[4]?
+    if params
+      for param in params
+        if param isnt ''
+          param = param.split('=')
+          paramlist.push {
+            key:param[0]
+            value:param[1]
+          }
 
-    op = res.match[0].split(" ")[2]
-    slices = res.match[2].split("\"")
+    op = cmd[1]
+    slices = cmd[2].split("\"")
     if slices.length is 1
       # no quotes
       # build by build-id
@@ -370,8 +442,12 @@ module.exports = (robot) ->
   
         pos = -1
         proj = -1
+        console.log "id" + id
+        console.log "op" + op
         for i in [0...ProjectList.length]
           for j in [0...BuildInfo[i].length]
+            console.log BuildInfo[i][j][0]
+            console.log BuildInfo[i][j][op_field]
             if BuildInfo[i][j][0] is id and BuildInfo[i][j][op_field] is op
               pos = j
               proj = i
@@ -379,14 +455,14 @@ module.exports = (robot) ->
           if pos isnt -1
             break
         if pos is -1
-          res.send "Unknown build id."
+          post_msg channel, "Unknown build id."
           return
 
         domain = BuildInfo[proj][pos][domain_field]
         refreshURL()
         
-        do_build_and_check(res,id,paramlist)
-        res.send op + "ing..."
+        do_build_and_check(user,id,paramlist)
+        post_msg channel,(op + "ing...")
         return
       else if slices.length is 2
       # build by project name and branch name
@@ -394,21 +470,21 @@ module.exports = (robot) ->
         branchname = slices[1]
         proj = ProjectName.indexOf(projname)
         if proj is -1
-          res.send "Unknown project name."
+          post_msg channel,"Unknown project name."
           return
         
         for row in BuildInfo[proj]
           if row[1] is branchname and row[op_field] is op
             domain = row[domain_field]
             refreshURL()
-            do_build_and_check(res,row[0],paramlist)
-            res.send op + "ing..."
+            do_build_and_check(user,row[0],paramlist)
+            post_msg channel,(op + "ing...")
             return
 
-        res.send "Unknown branch name : "+ branchname
+        post_msg channel,("Unknown branch name : "+ branchname)
         return
       else
-        res.send "Incorrect command."
+        post_msg channel, "Incorrect command."
         return
     else if slices.length is 3
       # a pair of quotes
@@ -416,18 +492,18 @@ module.exports = (robot) ->
       branchname = slices[1]
       proj = ProjectName.indexOf(projname)
       if proj is -1
-        res.send "Unknown project name : " + projname
+        post_msg channel,("Unknown project name : " + projname)
         return
         
       for row in BuildInfo[proj]
         if row[1] is branchname and row[op_field] is op
           domain = row[domain_field]
           refreshURL()
-          do_build_and_check(res,row[0],paramlist)
-          res.send op + "ing..."
+          do_build_and_check(user,row[0],paramlist)
+          post_msg channel,(op + "ing...")
           return
 
-      res.send "Unknown branch name : " + branchname
+      post_msg channel,("Unknown branch name : " + branchname)
       return
     else if slices.length is 5
       # two pairs of quotes
@@ -437,24 +513,24 @@ module.exports = (robot) ->
       branchname = slices[3]
       proj = ProjectName.indexOf(projname)
       if proj is -1
-        res.send "Unknown project name : "
+        post_msg channel,("Unknown project name : ")
         return
         
       for row in BuildInfo[proj]
         if row[1] is branchname and row[op_field] is op
           domain = row[domain_field]
           refreshURL()
-          do_build_and_check(res,row[0],paramlist)
-          res.send op + "ing..."
+          do_build_and_check(user,row[0],paramlist)
+          post_msg channel,(op + "ing...")
           return
 
-      res.send "Unknown branch name." + branchname
+      post_msg channel,("Unknown branch name." + branchname)
       return
 
     else
-      res.send "Incorrect command."
+      post_msg channel,("Incorrect command.")
 
-  do_build_and_check = (res, id, paramlist) ->
+  do_build_and_check = (user, id, paramlist) ->
     data = generate_build_xml id, paramlist
     info = request('POST', BuildQueue, {
       'headers': {'Content-type':'application/xml'}
@@ -462,12 +538,11 @@ module.exports = (robot) ->
     }).getBody('utf8')
     href = get_build_href info
     num = href.split("id:")[1]
-    ls_build_param res, num
-    new CronJob('0 */1 * * * *', check_href_method(res,href), null,true)
+    new CronJob('0 */1 * * * *', check_href_method(user,href), null,true)
     return
 
-  check_href_method = (res, href) ->
-    channel = get_username(res)
+  check_href_method = (user, href) ->
+    channel = user
     href = ServerURL + href
     serverURL = ServerURL
     -> if check_href(channel, href, serverURL) is true
@@ -521,6 +596,14 @@ module.exports = (robot) ->
       return true
     return false
 
+  post_msg = (channel,text) ->
+    slack.api.chat.postMessage ({
+      channel:channel
+      text:text
+      as_user:true
+    }), (err, ret) ->
+      throw err if err
+      
   get_build_href = (data) ->
     console.log data
     data.match(/href="[^"]+"/)[0].split("\"")[1]

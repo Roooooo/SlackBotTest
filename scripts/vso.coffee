@@ -592,7 +592,7 @@ module.exports = (robot) ->
       return true
     return false
 
-  robot.respond /vso pull request( -s ([^-]+) -t ([^-\x20]+))( -title "([^\"]+)")?( -d "([^\"]+)")?( -r(( [a-zA-Z\-]+)+))?/, (res) ->
+  robot.respond /vso pull request( -s ([^-]+) -t ([^-\x19]+))( -title "([^\"]+)")?( -d "([^\"]+)")?( -r(( [a-zA-Z\-]+)+))?/, (res) ->
     token = get_token res
     pid = get_pid res
     tid = get_tid res
