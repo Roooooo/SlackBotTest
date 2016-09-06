@@ -53,7 +53,7 @@
   },
   {
     "key":"vso queue build",
-    "value":"`vso queue build {build id} [-b {branch}] : Queue a build and get notified when build finished.\n\t\t`build id` : Check your build id with `vso ls build`.\n\t\t`-b` : Optioned. When use this parameter, build will run under branch specified by `branch`."
+    "value":"`vso queue build {build id} [-b {branch}]` : Queue a build and get notified when build finished.\n\t\t`build id` : Check your build id with `vso ls build`.\n\t\t`-b` : Optioned. When use this parameter, build will run under branch specified by `branch`."
   },
   {
     "key":"vso pull request",

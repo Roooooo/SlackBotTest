@@ -45,6 +45,55 @@ module.exports = (robot) ->
   get_tid = (res) ->
     config = user_config res
     return config.team.id
+  
+  post_msg = (channel,text) ->
+    slack.api.chat.postMessage ({
+      channel:channel
+      text:text
+      as_user:true
+    }), (err,ret) ->
+      throw err if err
+
+  msg_queue = []
+  msg_oldest = 0
+  msg_track_method = (channel_list,im_list) ->
+    ->msg_loog(channel_list,im_list)
+
+  msg_loop(channel_list,im_list) ->
+    msg_collect(channel_list,im_list)
+    msg_process()
+
+  msg_collect(channel_list,im_list) ->
+    tmp_oldest = msg_oldest
+    for channel in channel_list
+      param =
+        channel:channel.id
+        oldest:tmp_oldest
+        count:1000
+      slack.api.channels.histort (param), (err, ret) ->
+        if ret.messages isnt undefined and ret.messages.length isnt 0
+          msg_oldest = Math.max(ret.messages[0].ts,msg_oldest)
+          for msg in ret.messages
+            if msg.type is "message"
+              msg.queue.push msg
+    
+    for channel in im_list
+      param =
+        channel:channel.id
+        oldest:tmp_oldest
+        count:1000
+      slack.api.im.history (param), (err,ret) ->
+        if ret.messages isnt undefined and ret.messages.length isnt 0
+          msg_oldest = Math.max(ret.messages[0].ts,msg_oldest)
+          for msg in ret.messages
+            if msg.type is "message"
+              msg.channel = param.channel
+              msg_queue.psuh msg
+  
+  msg_process = () _>
+    while msg_queue.length isnt 0
+      msg = msg_queue.shift()
+      if msg.match(//)
 
   APIv1 = "api-version=1.0"
   APIv1p1 = "api-version=1.0-preview.1"
