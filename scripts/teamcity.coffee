@@ -216,8 +216,6 @@ module.exports = (robot) ->
 
   msg_track_method = (channel_list,im_list) ->
     console.log "test"
-    console.log channel_list
-    console.log im_list
     -> msg_loop(channel_list,im_list)
 
   msg_loop = (channel_list,im_list) ->
@@ -237,6 +235,7 @@ module.exports = (robot) ->
           msg_oldest = Math.max(ret.messages[0].ts,msg_oldest)
           for msg in ret.messages
             if msg.type is "message"
+              msg.channel = param.channel
               msg_queue.push msg
 
     for channel in im_list
@@ -256,10 +255,9 @@ module.exports = (robot) ->
     console.log "processing"
     while msg_queue.length isnt 0
       msg = msg_queue.shift()
-      console.log msg
       if msg.text.match(/teamcity\s+(build|deploy)\s+([^-]+)(\s+-p((\s+([0-9a-zA-Z\._-]+)=([0-9a-zA-Z\._-]+))+))?$/)
-        
         param = msg.text.match(/teamcity\s+(build|deploy)\s+([^-]+)(\s+-p((\s+([0-9a-zA-Z\._-]+)=([0-9a-zA-Z\._-]+))+))?$/)
+
         queue_build(param,msg.channel,msg.user)
 
   slack.api.channels.list ({}), (err, ret) ->
@@ -415,6 +413,7 @@ module.exports = (robot) ->
 #robot.respond /teamcity\s+(build|deploy)\s+([^-]+)(\s+-p((\s+([0-9a-zA-Z\._-]+)=([0-9a-zA-Z\._-]+))+))?$/, (res) ->
   queue_build = (cmd,channel,user) ->
     console.log cmd
+    console.log channel
     if refreshflag is false
       refreshList()
 
@@ -446,8 +445,6 @@ module.exports = (robot) ->
         console.log "op" + op
         for i in [0...ProjectList.length]
           for j in [0...BuildInfo[i].length]
-            console.log BuildInfo[i][j][0]
-            console.log BuildInfo[i][j][op_field]
             if BuildInfo[i][j][0] is id and BuildInfo[i][j][op_field] is op
               pos = j
               proj = i
@@ -462,6 +459,7 @@ module.exports = (robot) ->
         refreshURL()
         
         do_build_and_check(user,id,paramlist)
+        console.log channel
         post_msg channel,(op + "ing...")
         return
       else if slices.length is 2
@@ -550,7 +548,6 @@ module.exports = (robot) ->
       
   check_href = (channel, href, serverURL) ->
     console.log channel
-    console.log href
     info = request('GET',href).getBody('utf8')
     status = info.match(/state="[^"]+"/)[0].split("\"")[1]
 
@@ -605,7 +602,6 @@ module.exports = (robot) ->
       throw err if err
       
   get_build_href = (data) ->
-    console.log data
     data.match(/href="[^"]+"/)[0].split("\"")[1]
 
   ls_build_param = (res,id) ->

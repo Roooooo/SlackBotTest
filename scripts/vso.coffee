@@ -75,6 +75,7 @@ module.exports = (robot) ->
           msg_oldest = Math.max(ret.messages[0].ts,msg_oldest)
           for msg in ret.messages
             if msg.type is "message"
+              msg.channel = param.channel
               msg.queue.push msg
     
     for channel in im_list
@@ -458,6 +459,10 @@ module.exports = (robot) ->
       res.send "Please set your token first."
       return
 
+    if pid is undefined
+      res.send "Please set your project first."
+      return
+
     wiqlurl = "https://#{instance}/DefaultCollection/#{pid}/_apis/wit/wiql?#{APIv1}"
     wiqlurl = insert_token_to_url token,wiqlurl
     
@@ -502,7 +507,6 @@ module.exports = (robot) ->
 
       bugurl = insert_token_to_url token,bug.url
       buginfo = JSON.parse request('GET',bugurl).getBody('utf8')
-      console.log buginfo
       state = buginfo.fields['System.State']
       if state is 'resolved' or 'Resolved'
         bugobj.color = "good"
@@ -523,7 +527,6 @@ module.exports = (robot) ->
       bugurl = "https://#{instance}/#{config.project.name}/_workitems?id=#{buginfo.id}&_a=edit"
       bugobj.fields.push build_attach_obj "URL",bugurl,false
       attachments.push bugobj
-      console.log bugobj.color
 
     channel = get_username res
 
@@ -559,6 +562,9 @@ module.exports = (robot) ->
       res.send "Please set your token first."
       return
 
+    if pid is undefined
+      res.send "Please set your pid first."
+
     bugurl = "https://#{instance}/DefaultCollection/_apis/wit/workitems/#{bugid}?#{APIv1}"
     bugurl = insert_token_to_url token, bugurl
     info = JSON.parse request('GET',bugurl).getBody('utf8')
@@ -573,9 +579,11 @@ module.exports = (robot) ->
         }
       ])
     }
-    info = request('PATCH',bugurl,patch).getBody('utf8')
-    console.log JSON.parse info
-    res.send "Bug #{bugid} has been set to #{newstate}."
+    info = JSON.parse request('PATCH',bugurl,patch).getBody('utf8')
+    if info.fields['System.State'] is newstate
+      res.send "Bug #{bugid} has been set to #{newstate}."
+    else
+      res.send "Failed. The state of #{bugid} is #{info.fields['System.State']} now."
 
   robot.respond /vso\s+ls\s+build(\s+-k\s+(.*))?$/,(res) ->
     token = get_token res
@@ -583,6 +591,10 @@ module.exports = (robot) ->
 
     if token is null
       res.send "Please set your token first."
+      return
+
+    if pid is undefined
+      res.send "Please set your project first."
       return
 
     console.log res.match
@@ -606,12 +618,16 @@ module.exports = (robot) ->
 
     res.send msg
 
-  robot.respond /vso queue build ([0-9]+)( -b .*)?/, (res) ->
+  robot.respond /vso\s+queue\s+build\s+([0-9]+)(\s+-b\s+.*)?/, (res) ->
     token = get_token res
     pid = get_pid res
     
     if token is null
       res.send "Please set your token first."
+      return
+
+    if pid is undefined
+      res.send "Pleasr set your project first."
       return
 
     console.log res.match
@@ -651,13 +667,10 @@ module.exports = (robot) ->
   check_build = (res,url) ->
     token = get_token res
     info = JSON.parse request('GET',url).getBody('utf8')
-    console.log info.status
     if info.status is "completed"
-      console.log "yes"
       logurl = info.logs.url + "?" + APIv2
       logurl = insert_token_to_url token, logurl
       loginfo = JSON.parse request('GET',logurl).getBody('utf8')
-      console.log loginfo
       for log in loginfo.value
         tmpurl = log.url + "?#{APIv2}"
         tmpurl = insert_token_to_url token,tmpurl
@@ -676,9 +689,9 @@ module.exports = (robot) ->
           title:option.filename
           channels:'#general'
 
-        slackup.uploadFile obj, (er) ->
-          throw er if er
-          console.log 'done'
+        slackup.uploadFile obj, (err) ->
+          throw err if err
+          console.log "Upload finished."
 
       return true
     return false
@@ -693,8 +706,10 @@ module.exports = (robot) ->
     if token is null
       res.send "Please set your token first."
       return
+    
+    if pid is undefined
+      res.send "Plearse set your team first."
 
-    console.log res.match
     if repo is undefined
       res.send "Please set your repo first!"
       return
@@ -753,7 +768,6 @@ module.exports = (robot) ->
             id:teamId[index]
           }
         
-        
       if fail isnt ""
         fail = fail + " are not vaild alias, they will not be added to reviewers."
         res.send fail
@@ -780,5 +794,3 @@ module.exports = (robot) ->
               as_user:true
             }), (err) ->
               throw err if err
-
-
