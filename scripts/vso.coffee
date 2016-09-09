@@ -59,11 +59,11 @@ module.exports = (robot) ->
   msg_track_method = (channel_list,im_list) ->
     ->msg_loog(channel_list,im_list)
 
-  msg_loop(channel_list,im_list) ->
+  msg_loop = (channel_list,im_list) ->
     msg_collect(channel_list,im_list)
     msg_process()
 
-  msg_collect(channel_list,im_list) ->
+  msg_collect = (channel_list,im_list) ->
     tmp_oldest = msg_oldest
     for channel in channel_list
       param =
@@ -90,10 +90,11 @@ module.exports = (robot) ->
               msg.channel = param.channel
               msg_queue.psuh msg
   
-  msg_process = () _>
+  msg_process = () ->
     while msg_queue.length isnt 0
       msg = msg_queue.shift()
-      if msg.match(//)
+      if msg.match(/vso queue build$/)
+        console.log "matched"
 
   APIv1 = "api-version=1.0"
   APIv1p1 = "api-version=1.0-preview.1"
@@ -291,8 +292,12 @@ module.exports = (robot) ->
 
     project = config.project.name
     if project is undefined
-      res.send "Please set your default project first."
+      res.send "Please set your project first."
       return
+    if token is null
+      res.send "Please set your token first."
+      return
+
     refresh_team_info insert_token_to_url token, config.project.url + "/teams?#{APIv1}&$top=1000"
 
     oldTeam = config.team.project + "/" + config.team.name
@@ -319,9 +324,12 @@ module.exports = (robot) ->
     fs.writeFileSync (get_config_file get_userid res), JSON.stringify config
 
   robot.respond /vso\s+set\s+repo (.*)/, (res) ->
-   
     token = get_token res
     config = user_config res
+
+    if token is null
+      res.send "Please set your token first."
+      return
 
     oldrepo = config.repo
     if oldrepo is undefined
@@ -357,6 +365,10 @@ module.exports = (robot) ->
     token = get_token res
     config = user_config res
 
+    if token is null
+      res.send "Please set your token first."
+      return
+
     pid = get_pid res
     if pid is undefined
       res.send "Please set your default project first."
@@ -376,6 +388,11 @@ module.exports = (robot) ->
   robot.respond /vso\s+ls\s+workitem$/, (res) ->
     token = get_token res
     pid = get_pid res
+    config = user_config res
+
+    if token is null
+      res.send "Please set your token first."
+      return
 
     wiqlurl = "https://#{instance}/DefaultCollection/#{pid}/_apis/wit/wiql?#{APIv1}"
     wiqlurl = insert_token_to_url token,wiqlurl
@@ -416,6 +433,10 @@ module.exports = (robot) ->
       itemobj.fields.push build_attach_obj "AssignedTo",assigned, true
       itemobj.fields.push build_attach_obj "Name",iteminfo.fields['System.Title'],true
       itemobj.fields.push build_attach_obj "Priority",iteminfo.fields['Microsoft.VSTS.Common.Priority'],true
+
+      itemurl = "https://#{instance}/#{config.project.name}/_workitems?id=#{iteminfo.id}&_a=edit"
+
+      itemobj.fields.push build_attach_obj "URL",itemurl,false
       
       attachments.push itemobj
 
@@ -431,6 +452,11 @@ module.exports = (robot) ->
   robot.respond /vso\s+ls\s+bug(\s+-s\s+.*)?$/, (res) ->
     token = get_token res
     pid = get_pid res
+    config = user_config res
+
+    if token is null
+      res.send "Please set your token first."
+      return
 
     wiqlurl = "https://#{instance}/DefaultCollection/#{pid}/_apis/wit/wiql?#{APIv1}"
     wiqlurl = insert_token_to_url token,wiqlurl
@@ -478,9 +504,9 @@ module.exports = (robot) ->
       buginfo = JSON.parse request('GET',bugurl).getBody('utf8')
       console.log buginfo
       state = buginfo.fields['System.State']
-      if state is 'resolved'
+      if state is 'resolved' or 'Resolved'
         bugobj.color = "good"
-      if state is 'Active'
+      if state is 'Active' or 'active'
         bugobj.color = "danger"
       
       bugobj.pretext = ""
@@ -493,7 +519,11 @@ module.exports = (robot) ->
       bugobj.fields.push build_attach_obj "Bug Name",buginfo.fields['System.Title'],true
       bugobj.fields.push build_attach_obj "Priority",buginfo.fields['Microsoft.VSTS.Common.Priority'],true
       bugobj.fields.push build_attach_obj "State",buginfo.fields['System.State'],true
+      
+      bugurl = "https://#{instance}/#{config.project.name}/_workitems?id=#{buginfo.id}&_a=edit"
+      bugobj.fields.push build_attach_obj "URL",bugurl,false
       attachments.push bugobj
+      console.log bugobj.color
 
     channel = get_username res
 
@@ -525,6 +555,10 @@ module.exports = (robot) ->
     token = get_token res
     pid = get_pid res
 
+    if token is null
+      res.send "Please set your token first."
+      return
+
     bugurl = "https://#{instance}/DefaultCollection/_apis/wit/workitems/#{bugid}?#{APIv1}"
     bugurl = insert_token_to_url token, bugurl
     info = JSON.parse request('GET',bugurl).getBody('utf8')
@@ -546,6 +580,10 @@ module.exports = (robot) ->
   robot.respond /vso\s+ls\s+build(\s+-k\s+(.*))?$/,(res) ->
     token = get_token res
     pid = get_pid res
+
+    if token is null
+      res.send "Please set your token first."
+      return
 
     console.log res.match
     key = ""
@@ -572,6 +610,10 @@ module.exports = (robot) ->
     token = get_token res
     pid = get_pid res
     
+    if token is null
+      res.send "Please set your token first."
+      return
+
     console.log res.match
     post = {
       definition:{
@@ -647,6 +689,10 @@ module.exports = (robot) ->
     tid = get_tid res
     config = user_config res
     repo = config.repo
+
+    if token is null
+      res.send "Please set your token first."
+      return
 
     console.log res.match
     if repo is undefined
