@@ -1,7 +1,7 @@
 [
   {
     "key":"common",
-    "value":"Hi i'm pot. You can call me through following commands:\n\t\t`@pot: [command]`\n\t\t`pot [command]`\n\t\t(Direct message)`[command]`\nFor further help, try`?[command]` to get help with specific command."
+    "value":"Hi i'm pot. You can call me through following commands:\n\t\t`@pot: [command]`\n\t\t`pot [command]`\n\t\t(Direct message) `[command]`\nFor further help, try `?[command]` to get help with specific command."
   }, 
   {
     "key":"teamcity ls",
