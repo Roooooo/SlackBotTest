@@ -3,7 +3,6 @@
 
 request = require 'sync-request'
 fs = require 'fs'
-path = require 'path'
 SlackClient = require 'slack-api-client'
 token = process.env.HUBOT_SLACK_TOKEN || ''
 slack = new SlackClient(token)

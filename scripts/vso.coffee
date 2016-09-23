@@ -3,11 +3,9 @@
 
 request = require 'sync-request'
 fs = require 'fs'
-vso = require 'vso-client'
 CronJob = require('cron').CronJob
 SlackClient = require 'slack-api-client'
 slack = new SlackClient(process.env.HUBOT_SLACK_TOKEN)
-download = require 'download-file'
 
 SlackUpClient = require 'node-slack-upload'
 slackup = new SlackUpClient(process.env.HUBOT_SLACK_TOKEN)
