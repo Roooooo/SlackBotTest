@@ -9,7 +9,7 @@ Slack Team Bot is a bot intended for team work automation. It integrates the mai
 
 ### Installation
 
-0. Pull code from [here][https://mseng.visualstudio.com/vschina/app experience/_git/msdn.buildnotification].
+0. Pull code from [here][https://mseng.visualstudio.com/vschina/app%20experience/_git/msdn.buildnotification].
 
 1. Install npm with
 ```
