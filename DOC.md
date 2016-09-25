@@ -9,8 +9,9 @@ Slack Team Bot is a bot intended for team work automation. It integrates the mai
 
 ### Installation
 
-0. Pull code from [here][https://mseng.visualstudio.com/vschina/app%20experience/_git/msdn.buildnotification].
+0. Pull code from [here][here].
 
+[here]: https://mseng.visualstudio.com/vschina/app%20experience/_git/msdn.buildnotification
 1. Install npm with
 ```
 apt-get install npm
@@ -33,5 +34,4 @@ CONFIG_DIF="config/team/" HUBOT_SLACK_TOKEN=xoxb-********-****************** ./b
 ### Scripting
 
 There have been 4 scripts under `scripts/`. `teamcity.coffee` and `vso.coffee` is mainly used for integration with VSO and teamcity. `config.coffee` include several commands on config file operation. `daliy.coffee` is used for test and you can treat it as a simple example if you are new to hubot.
-
 You may add new functions with add new script under `scripts/`. All the scripts under `scripts/` will be run automatically by hubot.
