@@ -26,7 +26,7 @@ npm install node-slack-upload
 npm install download-file
 ```
 
-3.Run the bot with your slack team bot token. FYI, you may not upload your slack token to anywhere on Internet, otherwise slack will force you to renew your token.
+3. Run the bot with your slack team bot token. FYI, you may not upload your slack token to anywhere on Internet, otherwise slack will force you to renew your token.
 ```
 CONFIG_DIR="config/team/" HUBOT_SLACK_TOKEN=xoxb-********-****************** ./bin/hubot
 ```
