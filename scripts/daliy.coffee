@@ -31,8 +31,10 @@ module.exports = (robot) ->
         if msg isnt ""
           msg = msg + "\n\n"
         msg = msg + item.value
-
-    res.send msg
+    if msg isnt ""
+      res.send msg
+    else
+      res.send "Sorry, there's no command matched. Please try another keywords."
     return
   
   SlackClient = require('slack-api-client')

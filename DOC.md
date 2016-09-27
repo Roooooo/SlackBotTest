@@ -35,3 +35,17 @@ CONFIG_DIR="config/team/" HUBOT_SLACK_TOKEN=xoxb-********-****************** ./b
 
 There have been 4 scripts under `scripts/`. `teamcity.coffee` and `vso.coffee` is mainly used for integration with VSO and teamcity. `config.coffee` include several commands on config file operation. `daliy.coffee` is used for test and you can treat it as a simple example if you are new to hubot.
 You may add new functions with add new script under `scripts/`. All the scripts under `scripts/` will be run automatically by hubot.
+
+### How to setup a new bot with hubot
+
+1. Make sure you have the newest version of Node.js.
+2. Install hubot with following steps:
+```
+apt-get install npm
+npm install -g yo generator-hubot
+mkdir mybot
+cd mybot
+yo hubot
+```
+when install hubot, you should enter `slack` when prompted for the adaptor and a hubot-slack adaptor will be install automatically.
+3. Writing srcipts under `mybot/sciripts` and enjoy your bot.
