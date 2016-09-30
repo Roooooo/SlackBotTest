@@ -4,7 +4,7 @@ Slack Team Bot is a bot intended for team work automation. It integrates the mai
 
 ### Environment
 
-* Ubuntu 16.04 LTS
+* Ubuntu 16.04 LTS x64
 * Node.js v4.2.6
 
 ### Installation
